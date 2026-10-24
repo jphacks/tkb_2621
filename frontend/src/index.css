@@ -29,6 +29,8 @@
   --color-tag-field: #53ba6b;
   --color-tag-friend: #ec96ff;
   --color-tag-illustration: #95a0d7;
+  --color-viewer: #343434;
+  --color-viewer-frame: #f1f1f1;
   --color-tag-place: #9bd676;
   --color-tag-text: #f6f5f0;
 
@@ -595,6 +597,200 @@ body {
 .segmented > .active {
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+/* 見た目は消して、読み上げとキーボードには残す */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+label:focus-within:has(> .visually-hidden) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.btn.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tag-field {
+  background: var(--color-tag-field);
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* ステッカー作成 */
+.capture-modes {
+  margin-bottom: var(--space-3);
+}
+
+.capture-viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  min-height: 342px;
+  padding: var(--space-5) var(--space-4);
+  border-radius: var(--radius-button);
+  background: var(--color-viewer);
+  color: var(--color-surface);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.capture-viewer p {
+  margin: 0;
+}
+
+.capture-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 178px;
+  height: 180px;
+  border: 1px dashed var(--color-viewer-frame);
+  border-radius: var(--radius-button);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.capture-shutter {
+  display: block;
+  width: 63px;
+  margin: var(--space-4) auto 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.capture-files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.capture-files .card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.capture-files .section-title {
+  margin: 0;
+}
+
+.capture-back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 var(--space-4);
+}
+
+.capture-back h1 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+/* 透過がわかるように市松模様に載せる */
+.capture-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 195px;
+  padding: var(--space-3);
+  border-radius: var(--radius-button);
+  background: repeating-conic-gradient(#e9e9e9 0 25%, #fff 0 50%) 0 0 / 24px 24px;
+}
+
+.capture-image img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.capture-tags {
+  display: flex;
+  gap: 6px;
+  margin: var(--space-3) 0;
+}
+
+.capture-caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.capture-caption .input {
+  font-weight: var(--font-weight-bold);
+}
+
+.capture-count {
+  margin: var(--space-1) 0 var(--space-4);
+  text-align: right;
+  color: var(--color-text-faint);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.capture-count.over {
+  color: #c62828;
+}
+
+.capture-notice {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: var(--space-2) var(--space-3);
+}
+
+.capture-notice p {
+  margin: 0;
+}
+
+.capture-notice .notice-title {
+  margin-bottom: 2px;
+}
+
+.capture-confirm {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+}
+
+.capture-files .capture-confirm {
+  margin-top: 0;
+}
+
+.capture-confirm input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.capture-save {
+  margin-top: var(--space-5);
 }
 
 .logo {
