@@ -32,6 +32,7 @@ export default function OAuthCallback() {
 
   if (auth.status === 'loading') return <p>ログイン中…</p>
   if (auth.status === 'signedIn' && returnTo) return <Navigate to={returnTo} replace />
-  // 今は DID・ハンドルを確かめるために S1 に戻す。タイムラインができたら '/' にする
+  // ログインできたらタイムラインへ。失敗したらログイン画面でエラーを見せる
+  if (auth.status === 'signedIn') return <Navigate to="/" replace />
   return <Navigate to="/login" replace />
 }
