@@ -31,9 +31,14 @@ class FieldMembersResponse(BaseModel):
     members: list[str]  # DID。参加した順
 
 
+class FieldStateResponse(FieldMembersResponse):
+    closed: bool  # 閉じたフィールドにはもう参加できない
+
+
 class _MemoryStore:
     def __init__(self) -> None:
         self._rows: dict[str, dict[str, datetime]] = {}  # field_uri → DID → joined_at
+        self._closed: dict[str, datetime] = {}  # field_uri → closed_at
 
     async def init(self) -> None:
         logger.warning("DATABASE_URL が無いので、フィールドのメンバーはメモリに持ちます（再起動で消えます）")
@@ -50,6 +55,23 @@ class _MemoryStore:
 
     async def co_members(self, did: str) -> set[str]:
         return {m for rows in self._rows.values() if did in rows for m in rows if m != did}
+
+    async def remove(self, field_uri: str, did: str) -> bool:
+        """外したら True（もともとメンバーでなければ False）。"""
+        rows = self._rows.get(field_uri, {})
+        removed = rows.pop(did, None) is not None
+        if not rows:
+            self._rows.pop(field_uri, None)
+        return removed
+
+    async def remove_all(self, field_uri: str) -> None:
+        self._rows.pop(field_uri, None)
+
+    async def close_field(self, field_uri: str) -> None:
+        self._closed.setdefault(field_uri, datetime.now(timezone.utc))
+
+    async def is_closed(self, field_uri: str) -> bool:
+        return field_uri in self._closed
 
 
 class StoreUnavailable(Exception):
@@ -99,6 +121,10 @@ class _PostgresStore:
                     PRIMARY KEY (field_uri, did)
                 );
                 CREATE INDEX IF NOT EXISTS field_members_did ON field_members (did);
+                CREATE TABLE IF NOT EXISTS closed_fields (
+                    field_uri text PRIMARY KEY,
+                    closed_at timestamptz NOT NULL DEFAULT now()
+                );
                 """
             )
 
@@ -132,6 +158,23 @@ class _PostgresStore:
             did,
         )
         return {r["did"] for r in rows}
+
+    async def remove(self, field_uri: str, did: str) -> bool:
+        """外したら True（もともとメンバーでなければ False）。"""
+        rows = await self._fetch(
+            "DELETE FROM field_members WHERE field_uri = $1 AND did = $2 RETURNING did", field_uri, did
+        )
+        return bool(rows)
+
+    async def remove_all(self, field_uri: str) -> None:
+        await self._fetch("DELETE FROM field_members WHERE field_uri = $1", field_uri)
+
+    async def close_field(self, field_uri: str) -> None:
+        await self._fetch("INSERT INTO closed_fields (field_uri) VALUES ($1) ON CONFLICT DO NOTHING", field_uri)
+
+    async def is_closed(self, field_uri: str) -> bool:
+        rows = await self._fetch("SELECT 1 FROM closed_fields WHERE field_uri = $1", field_uri)
+        return bool(rows)
 
 
 store = _PostgresStore(DATABASE_URL) if DATABASE_URL else _MemoryStore()
@@ -168,6 +211,9 @@ def _field_creator(uri: str) -> str:
 async def join_field(body: JoinFieldRequest, did: str = Depends(require_did)) -> FieldMembersResponse:
     uri = body.field.uri
     creator = _field_creator(uri)
+    async with _unavailable_as_503():
+        if await store.is_closed(uri):
+            raise HTTPException(status.HTTP_410_GONE, "このフィールドは閉じています")
     try:
         record = await pds.get_record(uri)
     except pds.PdsError as e:
@@ -177,6 +223,9 @@ async def join_field(body: JoinFieldRequest, did: str = Depends(require_did)) ->
         raise HTTPException(status.HTTP_404_NOT_FOUND, "フィールドが見つかりません")
 
     async with _join_locks[uri], _unavailable_as_503():
+        # PDS を読んでいるあいだに閉じられたかもしれない
+        if await store.is_closed(uri):
+            raise HTTPException(status.HTTP_410_GONE, "このフィールドは閉じています")
         members = await store.members(uri)
         if did in members:
             return FieldMembersResponse(members=members)
@@ -189,14 +238,38 @@ async def join_field(body: JoinFieldRequest, did: str = Depends(require_did)) ->
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, "ブロックの確認ができませんでした") from e
         if not all(results):
             raise HTTPException(status.HTTP_403_FORBIDDEN, "このフィールドには参加できません")
-        if creator not in members:
+        # 最初の参加のときだけ作った人を足す（抜けた作った人を、ほかの人の参加で戻さない）
+        if not members:
             await store.add(uri, creator)
         await store.add(uri, did)
         return FieldMembersResponse(members=await store.members(uri))
 
 
 @router.get("/fields/members")
-async def field_members(uri: str = Query(...), did: str = Depends(require_did)) -> FieldMembersResponse:
+async def field_members(uri: str = Query(...), did: str = Depends(require_did)) -> FieldStateResponse:
     _field_creator(uri)
     async with _unavailable_as_503():
-        return FieldMembersResponse(members=await store.members(uri))
+        return FieldStateResponse(members=await store.members(uri), closed=await store.is_closed(uri))
+
+
+@router.delete("/fields/members")
+async def leave_field(uri: str = Query(...), did: str = Depends(require_did)) -> FieldStateResponse:
+    """呼んだ人がフィールドから抜ける。メンバーでなくても 200。最後の1人が抜けたら閉じる。"""
+    _field_creator(uri)
+    async with _join_locks[uri], _unavailable_as_503():
+        removed = await store.remove(uri, did)
+        members = await store.members(uri)
+        if removed and not members:
+            await store.close_field(uri)
+        return FieldStateResponse(members=members, closed=await store.is_closed(uri))
+
+
+@router.delete("/fields")
+async def delete_field(uri: str = Query(...), did: str = Depends(require_did)) -> dict[str, bool]:
+    """作った人がフィールドを削除する。メンバーを全部外して閉じる。"""
+    if _field_creator(uri) != did:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "フィールドを作った人だけが削除できます")
+    async with _join_locks[uri], _unavailable_as_503():
+        await store.remove_all(uri)
+        await store.close_field(uri)
+    return {"ok": True}
