@@ -8,6 +8,9 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 # 例：did:web:xxxx.onrender.com。getServiceAuth の aud と一致させる
 BACKEND_DID = os.getenv("BACKEND_DID", "")
 
+# Render Postgres の接続先。無ければ共同フィールドのメンバーをメモリに持つ（手元の開発用）
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
 # 本番は https://pikkles.kosora623.com。手元の Vite も許可する
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "")
 ALLOWED_ORIGINS = [o for o in (FRONTEND_ORIGIN, "http://127.0.0.1:5173") if o]
