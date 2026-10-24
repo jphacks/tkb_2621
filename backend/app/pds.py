@@ -24,6 +24,22 @@ class PdsError(Exception):
     """PDS や DID 文書が読めない"""
 
 
+def _describe(e: Exception) -> str:
+    """ログで原因がわかるように、例外の型と中身を短く書く（タイムアウトは str が空になる）"""
+    return f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
+
+
+def _error_code(res: httpx.Response) -> str:
+    """XRPC のエラー応答 {"error": …, "message": …} から原因を取り出す。JSON でなければ本文の頭。"""
+    try:
+        body = res.json()
+    except ValueError:
+        return res.text[:200]
+    if isinstance(body, dict):
+        return f"{body.get('error')}: {body.get('message')}"
+    return str(body)[:200]
+
+
 def parse_at_uri(uri: str) -> tuple[str, str, str]:
     """at://<did>/<collection>/<rkey> を分ける。形が違えば ValueError。"""
     if not uri.startswith("at://"):
@@ -38,7 +54,7 @@ async def get_pds_endpoint(did: str) -> str:
     try:
         doc = await _resolver.did.ensure_resolve(did)
     except AtProtocolError as e:
-        raise PdsError(f"DID 文書が読めません: {did}") from e
+        raise PdsError(f"DID 文書が読めません: {did}: {_describe(e)}") from e
     endpoint = doc.get_pds_endpoint()
     if not endpoint:
         raise PdsError(f"PDS の場所がありません: {did}")
@@ -51,7 +67,7 @@ async def _xrpc_get(did: str, method: str, params: dict) -> httpx.Response:
         async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
             return await client.get(f"{endpoint}/xrpc/{method}", params=params)
     except httpx.HTTPError as e:
-        raise PdsError(f"{method} に失敗しました: {did}") from e
+        raise PdsError(f"{method} に失敗しました: {did} {endpoint}: {_describe(e)}") from e
 
 
 async def get_record(uri: str) -> dict | None:
@@ -60,10 +76,10 @@ async def get_record(uri: str) -> dict | None:
     res = await _xrpc_get(
         did, "com.atproto.repo.getRecord", {"repo": did, "collection": collection, "rkey": rkey}
     )
-    if res.status_code == 400 and res.json().get("error") == "RecordNotFound":
+    if res.status_code == 400 and _error_code(res).startswith("RecordNotFound"):
         return None
     if res.status_code != 200:
-        raise PdsError(f"getRecord が {res.status_code} を返しました: {uri}")
+        raise PdsError(f"getRecord が {res.status_code} を返しました: {uri}: {_error_code(res)}")
     return res.json()
 
 
@@ -77,7 +93,9 @@ async def list_records(did: str, collection: str) -> list[dict]:
             params["cursor"] = cursor
         res = await _xrpc_get(did, "com.atproto.repo.listRecords", params)
         if res.status_code != 200:
-            raise PdsError(f"listRecords が {res.status_code} を返しました: {did} {collection}")
+            raise PdsError(
+                f"listRecords が {res.status_code} を返しました: {did} {collection}: {_error_code(res)}"
+            )
         body = res.json()
         records.extend(body.get("records", []))
         cursor = body.get("cursor")
@@ -88,10 +106,10 @@ async def list_records(did: str, collection: str) -> list[dict]:
     return records
 
 
-async def blocked_dids(did: str) -> set[str]:
-    """did がブロックしている相手の DID。30秒キャッシュする。"""
+async def blocked_dids(did: str, fresh: bool = False) -> set[str]:
+    """did がブロックしている相手の DID。30秒キャッシュする。fresh なら読み直す。"""
     cached = _block_cache.get(did)
-    if cached and time.monotonic() - cached[0] < BLOCK_CACHE_SECONDS:
+    if not fresh and cached and time.monotonic() - cached[0] < BLOCK_CACHE_SECONDS:
         return cached[1]
     records = await list_records(did, "app.bsky.graph.block")
     subjects = {r["value"].get("subject") for r in records if isinstance(r.get("value"), dict)}
@@ -100,6 +118,9 @@ async def blocked_dids(did: str) -> set[str]:
     return subjects
 
 
-async def check_no_block(a: str, b: str) -> bool:
-    """2人の間にどちら向きにもブロックが無ければ True（spec 6章の成立条件5）。"""
-    return b not in await blocked_dids(a) and a not in await blocked_dids(b)
+async def check_no_block(a: str, b: str, fresh: bool = False) -> bool:
+    """2人の間にどちら向きにもブロックが無ければ True（spec 6章の成立条件5）。
+
+    交換の参加と成立では fresh にする。キャッシュのままだと、ブロックした直後の30秒は交換できてしまう。
+    """
+    return b not in await blocked_dids(a, fresh) and a not in await blocked_dids(b, fresh)

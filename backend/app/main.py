@@ -2,14 +2,15 @@ import logging
 from contextlib import asynccontextmanager
 from urllib.parse import unquote
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from . import cutout as cutout_service
 from . import fields
 from .auth import require_did
 from .exchange import router as exchange_router
-from .config import ALLOWED_ORIGINS, BACKEND_DID
+from .config import ALLOWED_ORIGINS, BACKEND_DID, GIT_COMMIT
 from .schemas import CutoutResponse
 from .timeline import router as timeline_router
 
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    logger.info("starting: version=%s backend_did=%s", GIT_COMMIT, BACKEND_DID or "(unset)")
     cutout_service.init_session()
     await fields.store.init()
     yield
@@ -27,6 +29,21 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Pikkles API", lifespan=lifespan)
 
+
+@app.middleware("http")
+async def log_unhandled(request: Request, call_next):
+    """処理されなかった例外を、どのリクエストで起きたかと一緒にログに出す（Render のログで追えるように）。
+
+    CORS より内側に置くので、500 にも CORS ヘッダーが付き、ブラウザ側でも中身が読める。
+    """
+    try:
+        return await call_next(request)
+    except Exception:
+        logger.exception("unhandled error: %s %s", request.method, request.url.path)
+        return JSONResponse({"detail": "サーバーでエラーが起きました"}, status_code=500)
+
+
+# add_middleware は外側に積むので、上の log_unhandled より後に足す
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -42,7 +59,8 @@ app.include_router(fields.router)
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    # version は本番に出ているコミット（Render の RENDER_GIT_COMMIT）
+    return {"status": "ok", "version": GIT_COMMIT}
 
 
 @app.get("/.well-known/did.json")
@@ -81,6 +99,8 @@ def cutout(
     try:
         return cutout_service.cutout(image.file.read(), source)
     except ValueError as e:
+        logger.info("cutout rejected: did=%s source=%s: %s", did, source, e)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     except cutout_service.OutputTooLargeError as e:
+        logger.warning("cutout too large: did=%s source=%s: %s", did, source, e)
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "画像を 1MB に収められませんでした") from e
