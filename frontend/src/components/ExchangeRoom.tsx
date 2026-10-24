@@ -263,8 +263,13 @@ export default function ExchangeRoom(props: {
 
   const header = (
     <>
-      <h1>対面交換</h1>
-      {occasion && <p>場面：{occasion}</p>}
+      <div className="back-header">
+        <Link to="/binder" className="icon-button" aria-label="ビンにもどる">
+          <img src="/images/back.svg" alt="" width={13} height={18} />
+        </Link>
+        <h1>対面で交換</h1>
+      </div>
+      {occasion && <p className="tag tag-place">{occasion}</p>}
     </>
   )
 
