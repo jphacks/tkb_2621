@@ -1,7 +1,7 @@
 // S5 対面交換：始める側（A）。場面を入れてセッションを作り、参加用の QR を出す。
 import QRCode from 'qrcode'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { BackendError, createSession, refreshQr } from '../api/backend.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
@@ -31,7 +31,49 @@ function QrCode({ url }: { url: string }) {
     }
   }, [url])
   if (!dataUrl) return <p>QR を作っています…</p>
-  return <img src={dataUrl} alt="参加用の QR コード" style={{ width: '100%', maxWidth: 360, imageRendering: 'pixelated' }} />
+  return <img src={dataUrl} alt="参加用の QR コード" className="exchange-qr-image" />
+}
+
+/** QR と、次の QR に替わるまでの残り時間。URL が替わるたびに key で作り直して数え直す */
+function QrCard({ url }: { url: string }) {
+  const [shownAt] = useState(() => Date.now())
+  const [now, setNow] = useState(shownAt)
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+  const total = QR_REDRAW_MS / 1000
+  const remaining = Math.max(0, total - Math.floor((now - shownAt) / 1000))
+  return (
+    <div className="card exchange-qr">
+      <p>相手にこのQRを読んでもらおう…</p>
+      <QrCode url={url} />
+      <div className="progress" aria-hidden="true">
+        <span style={{ width: `${(remaining / total) * 100}%` }} />
+      </div>
+      <p className="text-muted">{remaining > 0 ? `あと${remaining}秒で新しいQRに切り替わります…` : 'まもなく新しいQRに切り替わります…'}</p>
+    </div>
+  )
+}
+
+/** 相手の QR を読む方法。アプリの中で読み取る機能はまだ無いので、iPhone のカメラで読むように案内する */
+function ScanPartner() {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <div className="or-divider">または</div>
+      {open && (
+        <div className="notice exchange-scan-hint">
+          <p className="notice-title">相手の QR を iPhone のカメラで読み取ってください</p>
+          <p>カメラアプリを開いて相手の画面の QR に向けると、交換に参加するページが開きます</p>
+        </div>
+      )}
+      <button type="button" className="btn btn-block exchange-scan" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <img src="/images/scan.svg" alt="" width={12} height={12} />
+        相手のQRを読み取る
+      </button>
+    </>
+  )
 }
 
 export default function Exchange() {
@@ -108,10 +150,12 @@ export default function Exchange() {
           onJoined={onJoined}
           waiting={
             <>
-              <p>相手に iPhone のカメラでこの QR を読んでもらってください</p>
-              <QrCode url={started.joinUrl} />
-              <p>相手の参加を待っています…</p>
+              <QrCard key={started.joinUrl} url={started.joinUrl} />
+              <p role="status" className="text-muted exchange-status">
+                相手の参加を待っています…
+              </p>
               {error && <p role="alert">{error}</p>}
+              <ScanPartner />
             </>
           }
         />
@@ -121,27 +165,37 @@ export default function Exchange() {
 
   return (
     <>
-      <h1>対面交換</h1>
+      <div className="back-header">
+        <Link to="/binder" className="icon-button" aria-label="ビンにもどる">
+          <img src="/images/back.svg" alt="" width={13} height={18} />
+        </Link>
+        <h1>対面で交換</h1>
+      </div>
       <BackendWaking />
       <form onSubmit={onSubmit}>
-        <label>
+        <label className="exchange-occasion">
           場面（任意）
-          <br />
           <input
             type="text"
+            className="input"
             value={occasion}
             onChange={(e) => setOccasion(e.target.value)}
             maxLength={OCCASION_MAX}
             placeholder="例：JPHACKS 2026 東京B"
           />
         </label>
-        <p>
-          <button type="submit" disabled={starting}>
-            {starting ? 'はじめています…' : '交換をはじめる'}
-          </button>
+        <p className="exchange-occasion-help">
+          <span>二人の交換記録に同じ場面が入ります</span>
+          <span className="capture-count">
+            {occasion.length}/{OCCASION_MAX}
+          </span>
         </p>
+        <button type="submit" className="btn btn-primary btn-block" disabled={starting}>
+          {starting ? 'はじめています…' : 'QRを出す'}
+        </button>
       </form>
       {error && <p role="alert">{error}</p>}
+      <ScanPartner />
     </>
   )
 }

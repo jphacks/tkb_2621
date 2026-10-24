@@ -105,7 +105,7 @@ export default function Capture() {
     const saving = step.kind === 'saving'
     return (
       <>
-        <div className="capture-back">
+        <div className="back-header">
           <button type="button" className="icon-button" onClick={reset} disabled={saving} aria-label="選び直す">
             <img src="/images/back.svg" alt="" width={13} height={18} />
           </button>

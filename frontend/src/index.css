@@ -34,6 +34,7 @@
   --color-jar-from: rgba(108, 170, 75, 0.24);
   --color-jar-to: rgba(69, 107, 59, 0.24);
   --color-round-border: #959595;
+  --color-scan-border: #c2c2c2;
   --color-tag-place: #9bd676;
   --color-tag-text: #f6f5f0;
 
@@ -697,14 +698,14 @@ label:focus-within:has(> .visually-hidden) {
   margin: 0;
 }
 
-.capture-back {
+.back-header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   margin: var(--space-5) 0 var(--space-4);
 }
 
-.capture-back h1 {
+.back-header h1 {
   margin: 0;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
@@ -938,6 +939,107 @@ label:focus-within:has(> .visually-hidden) {
 .binder-exchange {
   margin-top: var(--space-4);
   text-decoration: none;
+}
+
+/* 残り時間などの横棒 */
+.progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-button);
+  background: var(--color-surface-muted);
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+  transition: width 1s linear;
+}
+
+/* 左右に線を引いた「または」 */
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.or-divider::before,
+.or-divider::after {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+  content: '';
+}
+
+/* 対面で交換 */
+.exchange-occasion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.exchange-occasion-help {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: var(--space-1) 0 var(--space-4);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.exchange-occasion-help .capture-count {
+  margin: 0;
+}
+
+.exchange-qr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  border-radius: var(--radius-button);
+  text-align: center;
+}
+
+.exchange-qr p {
+  margin: 0;
+}
+
+.exchange-qr > p:first-child {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.exchange-qr-image {
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+  image-rendering: pixelated;
+}
+
+.exchange-status {
+  margin: var(--space-2) 0 0;
+  text-align: center;
+}
+
+.exchange-scan {
+  border-color: var(--color-scan-border);
+  font-size: var(--font-size-base);
+}
+
+.exchange-scan-hint {
+  margin-bottom: var(--space-3);
+}
+
+.exchange-scan-hint p {
+  margin: 0;
 }
 
 .logo {
