@@ -3,7 +3,7 @@
   "client_name": "Pikkles",
   "client_uri": "https://pikkles.kosora623.com",
   "redirect_uris": ["https://pikkles.kosora623.com/oauth/callback"],
-  "scope": "atproto repo:com.kosora623.pikkles.sticker repo:com.kosora623.pikkles.binder.page repo:com.kosora623.pikkles.exchange repo:com.kosora623.pikkles.field repo:com.kosora623.pikkles.field.member repo:com.kosora623.pikkles.field.placement repo:com.kosora623.pikkles.want blob:image/* rpc:com.kosora623.pikkles.api?aud=* transition:generic",
+  "scope": "atproto repo:com.kosora623.pikkles.sticker repo:com.kosora623.pikkles.binder.page repo:com.kosora623.pikkles.exchange repo:com.kosora623.pikkles.field repo:com.kosora623.pikkles.field.member repo:com.kosora623.pikkles.field.placement repo:com.kosora623.pikkles.want repo:app.bsky.graph.follow blob:image/* rpc:com.kosora623.pikkles.api?aud=* transition:generic",
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "none",
