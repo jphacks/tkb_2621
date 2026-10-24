@@ -3,12 +3,15 @@ import { AtUri, type Agent } from '@atproto/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { getTimeline, type TimelineItem } from '../api/backend.ts'
+import { getSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
+import Avatar from '../components/Avatar.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import Handle from '../components/Handle.tsx'
-import StickerImage, { StickerBackdrop } from '../components/StickerImage.tsx'
+import PageHeader from '../components/PageHeader.tsx'
+import StickerImage from '../components/StickerImage.tsx'
 import WantButton from '../components/WantButton.tsx'
-import type { Did } from '../lexicon-types.ts'
+import type { Did, Sticker, StrongRef } from '../lexicon-types.ts'
 
 function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
@@ -19,8 +22,38 @@ function stickerPath(uri: string): string {
   return `/sticker/${encodeURIComponent(at.host)}/${encodeURIComponent(at.rkey)}`
 }
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+/** 「10分前」「3時間前」「2日前」。1週間より前は日付で出す */
+function formatRelative(iso: string): string {
+  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  if (minutes < 1) return 'たった今'
+  if (minutes < 60) return `${minutes}分前`
+  if (minutes < 60 * 24) return `${Math.floor(minutes / 60)}時間前`
+  if (minutes < 60 * 24 * 7) return `${Math.floor(minutes / (60 * 24))}日前`
+  return new Date(iso).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })
+}
+
+/** 交換で渡した・受け取ったステッカー。削除されて読めなければ枠だけ出す */
+function TradeSticker({ sticker, label }: { sticker: StrongRef; label: string }) {
+  const [record, setRecord] = useState<Sticker>()
+
+  useEffect(() => {
+    let cancelled = false
+    getSticker(sticker)
+      .then((s) => !cancelled && setRecord(s))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [sticker])
+
+  return (
+    <figure className="timeline-trade-item">
+      <div className="timeline-trade-image">
+        {record && <StickerImage did={new AtUri(sticker.uri).host} sticker={record} maxHeight={53} />}
+      </div>
+      <figcaption>{label}</figcaption>
+    </figure>
+  )
 }
 
 /** 交換は2人がそれぞれ書くので、2人とも相手にいると同じ交換が2件来る。sessionId で1件にまとめる */
@@ -35,31 +68,54 @@ function dedupe(items: TimelineItem[]): TimelineItem[] {
 }
 
 function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did }) {
-  const card = { display: 'block', padding: 12, marginBottom: 12, borderRadius: 12, background: 'rgba(255,255,255,0.6)', color: 'inherit', textDecoration: 'none' }
   if (item.kind === 'sticker') {
+    const path = stickerPath(item.uri)
     // 「ほしい」はリンクの外に置き、押しても詳細に飛ばないようにする
     return (
-      <div style={card}>
-        <Link to={stickerPath(item.uri)} style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>
-          <p style={{ margin: '0 0 8px' }}>
-            <Handle did={item.author} /> さんが新しいステッカーを作りました
-          </p>
-          <StickerImage did={item.author} sticker={item.record} maxHeight={240} />
+      <article className="card timeline-sticker">
+        <Link to={path} className="timeline-thumb" tabIndex={-1} aria-hidden="true">
+          <StickerImage did={item.author} sticker={item.record} maxHeight={72} />
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-          <span style={{ fontSize: 12, color: '#888' }}>{formatDateTime(item.createdAt)}</span>
+        <div className="timeline-body">
+          <Link to={path} className="timeline-link">
+            <span className="timeline-who">
+              <Avatar did={item.author} />
+              <span>
+                <Handle did={item.author} />の
+                <br />
+                新しいステッカー
+              </span>
+            </span>
+            {item.record.caption && <span className="timeline-caption">{item.record.caption}</span>}
+            <span className="text-muted">{formatRelative(item.createdAt)}</span>
+            <span className={item.record.source === 'photo' ? 'tag' : 'tag tag-illustration'}>
+              {item.record.source === 'photo' ? '写真' : 'イラスト'}
+            </span>
+          </Link>
           <WantButton agent={agent} did={me} subject={{ uri: item.uri, cid: item.cid }} />
         </div>
-      </div>
+      </article>
     )
   }
   return (
-    <Link to={stickerPath(item.record.gave.uri)} style={card}>
-      <p style={{ margin: 0 }}>
-        <Handle did={item.author} /> さんと <Handle did={item.record.partner} /> さんが交換しました
-        {item.record.occasion ? `（${item.record.occasion}）` : ''}
-      </p>
-      <p style={{ margin: '8px 0 0', fontSize: 12, color: '#888' }}>{formatDateTime(item.createdAt)}</p>
+    <Link to={stickerPath(item.record.gave.uri)} className="card timeline-exchange">
+      <span className="timeline-who timeline-who-lg">
+        <Avatar did={item.author} size={30} />
+        <span>
+          <span className="timeline-exchange-title">
+            <Handle did={item.author} /> が <Handle did={item.record.partner} /> と交換しました
+          </span>
+          <span className="text-muted">{formatRelative(item.createdAt)}</span>
+        </span>
+      </span>
+      {item.record.occasion && <span className="tag tag-place">{item.record.occasion}</span>}
+      <div className="timeline-trade">
+        <TradeSticker sticker={item.record.gave} label="渡した" />
+        <span className="timeline-trade-arrow" aria-hidden="true">
+          ⇔
+        </span>
+        <TradeSticker sticker={item.record.received} label="受け取った" />
+      </div>
     </Link>
   )
 }
@@ -111,23 +167,25 @@ export default function Timeline() {
   const shown = dedupe(items)
 
   return (
-    <StickerBackdrop>
-      <h1 style={{ fontSize: 20 }}>タイムライン</h1>
+    <>
+      <PageHeader title="タイムライン" />
       {done && shown.length === 0 && <p style={{ marginTop: 48, textAlign: 'center' }}>交換すると、相手の新しいステッカーがここに流れます</p>}
-      {shown.map((item) => (
-        <Event key={item.uri} item={item} agent={agent} me={auth.did} />
-      ))}
-      {loading && <p>読み込み中…</p>}
+      <div className="timeline">
+        {shown.map((item) => (
+          <Event key={item.uri} item={item} agent={agent} me={auth.did} />
+        ))}
+      </div>
+      {loading && <p className="text-muted">読み込み中…</p>}
       {loading && <BackendWaking />}
       {error && (
         <p role="alert">
           読めませんでした：{error}{' '}
-          <button type="button" onClick={() => void loadMore()}>
+          <button type="button" className="btn" onClick={() => void loadMore()}>
             もう一度
           </button>
         </p>
       )}
       <div ref={sentinel} style={{ height: 1 }} />
-    </StickerBackdrop>
+    </>
   )
 }
