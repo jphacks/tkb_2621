@@ -143,7 +143,8 @@ async def _partner_items(partner: str) -> list[tuple[datetime, TimelineItem]]:
     async def established(other: str) -> bool:
         try:
             return await _has_pair(partner, other, by_other[other])
-        except pds.PdsError:
+        except pds.PdsError as e:
+            logger.warning("timeline: exchange check failed: %s <-> %s: %s", partner, other, e)
             return False
 
     results = await asyncio.gather(*(established(o) for o in by_other))
@@ -181,7 +182,7 @@ async def timeline(
     try:
         partners = await collect_partners(did)
     except pds.PdsError as e:
-        logger.warning("timeline: own PDS failed: %s", e)
+        logger.warning("timeline: own PDS failed: did=%s: %s", did, e)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "自分の PDS が読めませんでした") from e
 
     items = [i for chunk in await asyncio.gather(*(_partner_items(p) for p in partners)) for i in chunk]

@@ -92,7 +92,8 @@ async def _send(session: Session, did: str, message) -> None:
         return
     try:
         await ws.send_json(message.model_dump(mode="json"))
-    except Exception:  # 切れた接続は捨てる
+    except Exception as e:  # 切れた接続は捨てる
+        logger.info("session %s: send %s to %s failed: %s: %s", session.id, message.type, did, type(e).__name__, e)
         session.sockets.pop(did, None)
 
 
@@ -153,11 +154,12 @@ async def join_session(session_id: str, body: JoinRequest, did: str = Depends(re
     if session.join_tokens.get(body.t, 0) <= time.monotonic():
         raise HTTPException(status.HTTP_410_GONE, "QR の有効期限が切れています。読み直してください")
     try:
-        ok = await pds.check_no_block(session.a, did)
+        ok = await pds.check_no_block(session.a, did, fresh=True)
     except pds.PdsError as e:
-        logger.warning("block check failed: %s", e)
+        logger.warning("session %s: block check failed on join: a=%s b=%s: %s", session.id, session.a, did, e)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "ブロックの確認ができませんでした") from e
     if not ok:
+        logger.info("session %s: join refused (block): a=%s b=%s", session.id, session.a, did)
         raise HTTPException(status.HTTP_403_FORBIDDEN, "この相手とは交換できません")
     # ブロックを確かめている間に別の人が参加していないか
     if session.b is not None or session.status != "waiting":
@@ -197,8 +199,8 @@ async def exchange_ws(websocket: WebSocket, session_id: str) -> None:
         while True:
             try:
                 message = _client_message.validate_python(await websocket.receive_json())
-            except (ValidationError, ValueError):
-                logger.info("ws %s: invalid message", session.id)
+            except (ValidationError, ValueError) as e:
+                logger.info("ws %s: invalid message from %s: %s", session.id, did, e)
                 continue
             await _handle_message(session, did, message)
     except WebSocketDisconnect:
@@ -253,10 +255,10 @@ async def commit(session_id: str, body: CommitRequest, did: str = Depends(requir
         try:
             views, reason = await _verify(session)
         except pds.PdsError as e:
-            logger.warning("verify failed: %s", e)
+            logger.warning("session %s: verify failed: %s", session.id, e)
             return CommitResponse(result="failed", reason="相手の PDS が読めませんでした。もう一度送ってください")
         if views is None:
-            logger.info("session %s failed: %s", session.id, reason)
+            logger.info("session %s failed: %s (commits=%s)", session.id, reason, session.commits)
             return CommitResponse(result="failed", reason=reason)
 
         session.status = "completed"
@@ -304,7 +306,7 @@ async def _verify(session: Session) -> tuple[dict[str, ExchangeView] | None, str
         if sticker is None or sticker.get("cid") != gave.get("cid"):
             return None, "渡したステッカーが PDS にありません"
     # 5. ブロックが無い
-    if not await pds.check_no_block(a, b):
+    if not await pds.check_no_block(a, b, fresh=True):
         return None, "この相手とは交換できません"
     # 6. occasion がセッションの値と同じ（入力が無いときは2人とも空）
     if (va.get("occasion") or None) != session.occasion or (vb.get("occasion") or None) != session.occasion:
