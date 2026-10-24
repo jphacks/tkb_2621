@@ -35,6 +35,9 @@
   --color-jar-to: rgba(69, 107, 59, 0.24);
   --color-round-border: #959595;
   --color-scan-border: #c2c2c2;
+  --color-field-dot: #e4e2da;
+  --color-field-dot-border: #eeece4;
+  --color-field-thumb: #fffdf7;
   --color-tag-place: #9bd676;
   --color-tag-text: #f6f5f0;
 
@@ -1040,6 +1043,175 @@ label:focus-within:has(> .visually-hidden) {
 
 .exchange-scan-hint p {
   margin: 0;
+}
+
+/* 共同フィールド */
+.field-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.field-actions .btn {
+  flex: 1;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+}
+
+.field-create {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.field-create p {
+  margin: 0;
+}
+
+.field-create .capture-count {
+  margin: 0;
+}
+
+.field-list-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.field-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.field-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-button);
+  color: inherit;
+  text-decoration: none;
+}
+
+/* キャンバスと同じドット模様の小さな見本 */
+.field-card-thumb {
+  flex: none;
+  width: 59px;
+  height: 59px;
+  border: 1px solid var(--color-field-dot-border);
+  border-radius: var(--radius-button);
+  background: var(--color-field-thumb) radial-gradient(var(--color-field-dot) 1.5px, transparent 1.5px) 0 0 / 14px 14px;
+}
+
+.field-card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  word-break: break-all;
+}
+
+.field-card-deleted {
+  flex: none;
+  background: var(--color-text-muted);
+}
+
+.field-header {
+  margin-top: 0;
+}
+
+.field-header h1 {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.field-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.field-toolbar [role='status'] {
+  margin-right: auto;
+}
+
+.field-members {
+  display: flex;
+  align-items: center;
+}
+
+.field-members .avatar + .avatar {
+  margin-left: -6px;
+}
+
+.field-members .avatar {
+  border: 1px solid var(--color-bg);
+}
+
+.field-members-more {
+  margin-left: var(--space-1);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.field-invite {
+  margin: 0 0 var(--space-3);
+}
+
+/* 白地にドット。キャンバスは透明にして、この背景を透かす */
+.field-board {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-button);
+  background: var(--color-surface) radial-gradient(var(--color-field-dot) 1.5px, transparent 1.5px) 8px 8px / 19px 19px;
+}
+
+.field-board .konvajs-content {
+  position: relative;
+}
+
+.field-tapped {
+  margin-top: var(--space-3);
+}
+
+.field-tapped p {
+  margin: 0 0 var(--space-3);
+}
+
+.field-tapped-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.field-members-title {
+  margin-top: var(--space-4);
+}
+
+.field-members-names {
+  margin: 0;
+  word-break: break-all;
+}
+
+.field-manage {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
+.field-remove {
+  margin-top: var(--space-3);
 }
 
 .logo {
