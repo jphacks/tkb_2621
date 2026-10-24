@@ -84,8 +84,52 @@ export interface FieldItem {
   height: number
 }
 
-function toPlacementOnly(p: FieldPlacement): Placement {
+export function toPlacementOnly(p: FieldPlacement): Placement {
   return { sticker: p.sticker, x: p.x, y: p.y, scale: p.scale, rotation: p.rotation, z: p.z }
+}
+
+/** このフィールドを指し、author 自身のステッカーを貼った field.placement なら true。Jetstream で受け取った中身にも使う */
+export function isOwnPlacement(author: Did, value: unknown, fieldUri: string): value is FieldPlacement {
+  if (typeof value !== 'object' || value === null) return false
+  const p = value as Partial<FieldPlacement>
+  if (p.field?.uri !== fieldUri || typeof p.sticker?.uri !== 'string' || typeof p.sticker.cid !== 'string') return false
+  if (![p.x, p.y, p.scale, p.rotation, p.z].every((n) => typeof n === 'number')) return false
+  try {
+    const at = new AtUri(p.sticker.uri)
+    return at.host === author && at.collection === NSID.sticker
+  } catch {
+    return false
+  }
+}
+
+interface StickerImage {
+  imageUrl: string
+  width: number
+  height: number
+}
+
+/** 貼られたステッカーの画像と大きさ。読めない（削除された）ものは undefined */
+function loadStickerImage(author: Did, ref: StrongRef): Promise<StickerImage | undefined> {
+  return getSticker(ref)
+    .then(async (s) => ({ imageUrl: await stickerImageUrl(author, s), width: s.width, height: s.height }))
+    .catch(() => undefined)
+}
+
+function toFieldItem(uri: string, author: Did, value: FieldPlacement, s: StickerImage | undefined): FieldItem {
+  return {
+    uri,
+    author,
+    placement: toPlacementOnly(value),
+    createdAt: value.createdAt,
+    imageUrl: s?.imageUrl,
+    width: s?.width ?? 1,
+    height: s?.height ?? 1,
+  }
+}
+
+/** field.placement 1件を画面に出す形にする（Jetstream で受け取ったとき） */
+export async function loadFieldItem(uri: string, author: Did, value: FieldPlacement): Promise<FieldItem> {
+  return toFieldItem(uri, author, value, await loadStickerImage(author, value.sticker))
 }
 
 /** メンバー全員の PDS から、このフィールドを指す field.placement を読む。自分のものでないステッカーを貼ったものは数えない */
@@ -95,15 +139,7 @@ export async function listFieldItems(fieldUri: string, members: Did[]): Promise<
       try {
         const records = await listPublicRecords<FieldPlacement>(member, NSID.fieldPlacement)
         return records
-          .filter(({ value }) => value.field?.uri === fieldUri)
-          .filter(({ value }) => {
-            try {
-              const at = new AtUri(value.sticker.uri)
-              return at.host === member && at.collection === NSID.sticker
-            } catch {
-              return false
-            }
-          })
+          .filter(({ value }) => isOwnPlacement(member, value, fieldUri))
           .map((r) => ({ uri: r.uri, author: member, value: r.value }))
       } catch {
         // PDS が読めないメンバーの分は出さない
@@ -114,31 +150,16 @@ export async function listFieldItems(fieldUri: string, members: Did[]): Promise<
   const records = perMember.flat()
 
   // 同じステッカーは1回だけ読む
-  const stickers = new Map<string, Promise<{ imageUrl: string; width: number; height: number } | undefined>>()
+  const stickers = new Map<string, Promise<StickerImage | undefined>>()
   for (const { author, value } of records) {
     const key = `${value.sticker.uri}#${value.sticker.cid}`
-    if (stickers.has(key)) continue
-    stickers.set(
-      key,
-      getSticker(value.sticker)
-        .then(async (s) => ({ imageUrl: await stickerImageUrl(author, s), width: s.width, height: s.height }))
-        .catch(() => undefined),
-    )
+    if (!stickers.has(key)) stickers.set(key, loadStickerImage(author, value.sticker))
   }
 
   return Promise.all(
-    records.map(async ({ uri, author, value }) => {
-      const s = await stickers.get(`${value.sticker.uri}#${value.sticker.cid}`)
-      return {
-        uri,
-        author,
-        placement: toPlacementOnly(value),
-        createdAt: value.createdAt,
-        imageUrl: s?.imageUrl,
-        width: s?.width ?? 1,
-        height: s?.height ?? 1,
-      }
-    }),
+    records.map(async ({ uri, author, value }) =>
+      toFieldItem(uri, author, value, await stickers.get(`${value.sticker.uri}#${value.sticker.cid}`)),
+    ),
   )
 }
 
