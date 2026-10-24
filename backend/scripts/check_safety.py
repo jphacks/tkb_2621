@@ -5,6 +5,8 @@ PDS に書くのはこのスクリプトだけ（サーバー本体は読むだ�
   2. #10 A がステッカーを削除すると、B の /timeline から消える（テスト用に1枚作って消す）
   3. #11 A が B をブロックすると join が 403、B の /timeline に A が出ない。最後にブロックを外す
   4. #8 位置情報付きの JPEG を /cutout に送ると、返る PNG にメタデータが無い
+  5. 共同フィールド: 抜ける／最後の1人が抜けると closed になり参加できない（410）／作った人だけが削除できる
+     （テスト用の field を A の PDS に作り、最後に消す）
 
 アカウントは fake_exchange.py と同じ（FAKE_A_*, FAKE_B_*。リポジトリ直下の .env も読む）。
 
@@ -26,7 +28,9 @@ import httpx
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFilter
 
-from fake_exchange import TARGETS, Failed, User, check, connect_users, exchange, start_session
+from fake_exchange import TARGETS, Failed, User, check, connect_users, exchange, now, start_session
+
+FIELD = "com.kosora623.pikkles.field"
 
 # サーバーは相手ごとに30秒キャッシュするので、それより少し長く待つ
 POLL_SECONDS = 45
@@ -173,6 +177,69 @@ def check_cutout(http: httpx.Client, a: User, photo: Path | None) -> None:
     record(name, not problems, "; ".join(problems) or f"チャンク {[c.decode() for c in dict.fromkeys(chunks)]}")
 
 
+def create_field(user: User, title: str) -> dict:
+    record = {"$type": FIELD, "title": title, "createdAt": now()}
+    res = user.client.com.atproto.repo.create_record({"repo": user.did, "collection": FIELD, "record": record})
+    print(f"[{user.name}] created field {res.uri}")
+    return {"uri": res.uri, "cid": res.cid}
+
+
+def join_field(http: httpx.Client, user: User, field: dict) -> httpx.Response:
+    return http.post("/fields/join", json={"field": field}, headers=user.headers())
+
+
+def field_state(http: httpx.Client, user: User, field: dict) -> dict:
+    return check(http.get("/fields/members", params={"uri": field["uri"]}, headers=user.headers()))
+
+
+def leave_field(http: httpx.Client, user: User, field: dict) -> dict:
+    return check(http.delete("/fields/members", params={"uri": field["uri"]}, headers=user.headers()))
+
+
+def check_field_leave(http: httpx.Client, a: User, b: User) -> None:
+    """抜ける・最後の1人が抜けると閉じる。テスト用の field は最後に消す。"""
+    field = create_field(a, "check_safety 退出テスト")
+    try:
+        joined = check(join_field(http, b, field))
+        if joined["members"] != [a.did, b.did]:
+            record("フィールドから抜ける", False, f"join の members が {joined['members']}")
+            return
+
+        left = leave_field(http, b, field)
+        again = leave_field(http, b, field)
+        ok = left == {"members": [a.did], "closed": False} and again == left
+        record("フィールドから抜ける", ok, f"1回目 {left} / 2回目 {again}")
+
+        last = leave_field(http, a, field)
+        state = field_state(http, b, field)
+        res = join_field(http, b, field)
+        ok = last == {"members": [], "closed": True} and state["closed"] is True and res.status_code == 410
+        record(
+            "最後の1人が抜けると closed になり、もう参加できない",
+            ok,
+            f"抜けたあと {last} / members {state} / join {res.status_code} {res.text[:200]}",
+        )
+    finally:
+        a.delete_record(field["uri"])
+
+
+def check_field_delete(http: httpx.Client, a: User, b: User) -> None:
+    """作った人だけが削除できる。テスト用の field は最後に消す。"""
+    field = create_field(a, "check_safety 削除テスト")
+    try:
+        check(join_field(http, b, field))
+        res = http.delete("/fields", params={"uri": field["uri"]}, headers=b.headers())
+        record("作った人でなければフィールドを削除できない（403）", res.status_code == 403, f"{res.status_code} {res.text[:200]}")
+
+        deleted = check(http.delete("/fields", params={"uri": field["uri"]}, headers=a.headers()))
+        state = field_state(http, a, field)
+        res = join_field(http, b, field)
+        ok = deleted == {"ok": True} and state == {"members": [], "closed": True} and res.status_code == 410
+        record("フィールドを削除", ok, f"削除 {deleted} / members {state} / join {res.status_code} {res.text[:200]}")
+    finally:
+        a.delete_record(field["uri"])
+
+
 async def run(base_url: str, photo: Path | None) -> None:
     http, a, b = connect_users(base_url)
     health = check(http.get("/health"))
@@ -183,6 +250,8 @@ async def run(base_url: str, photo: Path | None) -> None:
         ("#10 削除したステッカーがタイムラインから消える", lambda: check_delete(http, a, b)),
         ("#11 ブロック", lambda: check_block(http, a, b)),
         ("#8 /cutout の PNG にメタデータが無い", lambda: check_cutout(http, a, photo)),
+        ("共同フィールドから抜ける", lambda: check_field_leave(http, a, b)),
+        ("共同フィールドを削除", lambda: check_field_delete(http, a, b)),
     ]
     for name, step in steps:
         print(f"\n== {name}")
