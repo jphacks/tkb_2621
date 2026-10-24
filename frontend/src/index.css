@@ -16,6 +16,8 @@
   --color-border-input: rgba(0, 0, 0, 0.15);
   --color-login-from: #f2b53a;
   --color-login-to: #f7e694;
+  --color-border-login: #c7c7c7;
+  --color-placeholder: #6f6f6f;
   --color-notice-bg: #fff6e0;
   --color-notice-border: rgba(66, 52, 0, 0.15);
   --color-notice-title: #5c3800;
@@ -48,6 +50,7 @@
   --radius-xs: 3px;
   --radius-card: 10px;
   --radius-button: 15px;
+  --radius-login-button: 12px;
   --radius-pill: 40px;
 
   /* 影 */
@@ -117,12 +120,99 @@ body {
   color: var(--color-text);
 }
 
+/* ログイン画面。.page の余白をなくして、グラデーションを画面いっぱいに敷く */
+.page:has(> .login) {
+  padding: 0;
+}
+
+.login {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  overflow: hidden;
+  padding: var(--space-5) var(--space-5) 40px;
+  background: linear-gradient(to bottom, var(--color-login-from) 29.8%, var(--color-login-to));
+  color: var(--color-bg);
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: normal;
+  color: var(--color-brand);
+  text-shadow: var(--shadow-logo);
+}
+
+.login-logo img {
+  filter: drop-shadow(var(--shadow-logo));
+}
+
+.login-tagline {
+  margin: 28px 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: 36px;
+}
+
+.login-lead {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  line-height: 20px;
+}
+
+/* 2枚のステッカーを左上と右下に、互い違いに傾けて置く */
+.login-stickers {
+  position: relative;
+  flex: 1;
+  min-height: 230px;
+  margin: var(--space-5) calc(var(--space-5) * -1);
+}
+
+/* Figma では幅が画面の 46%、中心が横 26% と 80%、縦は真ん中から上下に少しずれている */
+.login-stickers img {
+  position: absolute;
+  top: 50%;
+  width: 46%;
+  max-width: 200px;
+  height: auto;
+}
+
+.login-stickers img:first-child {
+  left: 3%;
+  transform: translateY(-60%) rotate(-16.62deg);
+}
+
+.login-stickers img:last-child {
+  left: 57%;
+  transform: translateY(-35%) rotate(14.67deg);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.login-input {
+  padding: var(--space-2) 9px;
+  border-color: var(--color-border-login);
+  border-radius: var(--radius-xs);
+}
+
+.login-input::placeholder {
+  color: var(--color-placeholder);
+}
+
 .login-primary {
   display: block;
   width: 100%;
   padding: var(--space-3);
   border: none;
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-login-button);
   background: var(--color-primary);
   color: var(--color-primary-text);
   font-family: inherit;
@@ -130,8 +220,16 @@ body {
   font-weight: var(--font-weight-bold);
 }
 
-.login-other {
-  margin-top: var(--space-4);
+.login-primary:disabled {
+  opacity: 0.6;
+}
+
+.login-error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  color: #c62828;
   font-size: var(--font-size-md);
 }
 
