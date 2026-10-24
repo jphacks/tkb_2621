@@ -28,6 +28,7 @@
   --color-tag-photo: #ff9696;
   --color-tag-field: #53ba6b;
   --color-tag-friend: #ec96ff;
+  --color-tag-illustration: #95a0d7;
   --color-tag-place: #9bd676;
   --color-tag-text: #f6f5f0;
 
@@ -115,9 +116,52 @@ body {
   text-decoration: none;
 }
 
+/* 選んでいるタブは、上に少し飛び出した見出しのような形にする */
 .tab.active {
+  position: relative;
+  margin-top: -11px;
+  padding-top: calc(var(--space-3) + 11px);
   background: var(--color-bg);
   color: var(--color-text);
+}
+
+/* アイコンは形だけを使い、色は文字色に合わせる */
+.tab-icon {
+  display: block;
+  width: 32px;
+  height: 28px;
+  margin: 0 auto var(--space-1);
+  background: currentColor;
+  -webkit-mask: no-repeat center;
+  mask: no-repeat center;
+}
+
+.tab-icon-timeline {
+  -webkit-mask-image: url('/images/tab-timeline.svg');
+  mask-image: url('/images/tab-timeline.svg');
+  -webkit-mask-size: 21px 13px;
+  mask-size: 21px 13px;
+}
+
+.tab-icon-capture {
+  -webkit-mask-image: url('/images/tab-capture.png');
+  mask-image: url('/images/tab-capture.png');
+  -webkit-mask-size: 31px 31px;
+  mask-size: 31px 31px;
+}
+
+.tab-icon-binder {
+  -webkit-mask-image: url('/images/tab-binder.png');
+  mask-image: url('/images/tab-binder.png');
+  -webkit-mask-size: 28px 28px;
+  mask-size: 28px 28px;
+}
+
+.tab-icon-fields {
+  -webkit-mask-image: url('/images/tab-fields.svg');
+  mask-image: url('/images/tab-fields.svg');
+  -webkit-mask-size: 25px 18px;
+  mask-size: 25px 18px;
 }
 
 /* ログイン画面。.page の余白をなくして、グラデーションを画面いっぱいに敷く */
@@ -334,6 +378,199 @@ body {
   color: var(--color-tag-text);
   font-size: var(--font-size-xs);
   line-height: 14px;
+}
+
+.tag-illustration {
+  background: var(--color-tag-illustration);
+}
+
+.tag-place {
+  padding: 0 11px;
+  background: var(--color-tag-place);
+  color: var(--color-surface);
+  font-weight: var(--font-weight-medium);
+  line-height: 20px;
+}
+
+.avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--color-surface);
+  font-weight: var(--font-weight-bold);
+}
+
+/* タブの画面の上の、ロゴと画面名 */
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.page-header-logo {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-display);
+  font-size: var(--font-size-display);
+  color: var(--color-brand);
+  text-shadow: var(--shadow-logo);
+}
+
+.page-header-logo img {
+  filter: drop-shadow(var(--shadow-logo));
+}
+
+.page-header-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+/* 「ほしい」。付けたあとは黄色にする */
+.want-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 35px;
+  padding: 0 var(--space-4) 0 var(--space-3);
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.want-button.wanted {
+  border-color: var(--color-wanted-border);
+  background: var(--color-wanted-bg);
+  color: var(--color-wanted-text);
+}
+
+.want-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* タイムライン */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.timeline-sticker {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  align-items: center;
+  gap: 20px;
+}
+
+.timeline-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+  padding: var(--space-1);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+.timeline-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.timeline-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.timeline-who {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  word-break: break-all;
+}
+
+.timeline-who-lg {
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 0;
+}
+
+.timeline-who-lg > span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-caption {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.timeline-link .tag {
+  margin-top: var(--space-1);
+}
+
+.timeline-exchange {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: inherit;
+  text-decoration: none;
+}
+
+.timeline-exchange-title {
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+}
+
+.timeline-trade {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-2);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+.timeline-trade-item {
+  margin: 0;
+  text-align: center;
+  font-size: var(--font-size-xs);
+}
+
+.timeline-trade-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 53px;
+  margin-bottom: 2px;
+}
+
+.timeline-trade-arrow {
+  font-size: 24px;
+  font-weight: var(--font-weight-light);
 }
 
 .segmented {

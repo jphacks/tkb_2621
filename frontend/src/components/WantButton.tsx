@@ -39,8 +39,15 @@ export default function WantButton({ agent, did, subject }: { agent: Agent; did:
 
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <button type="button" onClick={() => void toggle()} disabled={busy || wanted === undefined} aria-pressed={wanted ?? false}>
-        {wanted ? '♥ ほしい' : '♡ ほしい'}
+      <button
+        type="button"
+        className={wanted ? 'want-button wanted' : 'want-button'}
+        onClick={() => void toggle()}
+        disabled={busy || wanted === undefined}
+        aria-pressed={wanted ?? false}
+      >
+        <img src={wanted ? '/images/star-filled.svg' : '/images/star.svg'} alt="" width={11} height={11} />
+        {wanted ? 'ほしい済み' : 'ほしい'}
       </button>
       {failed && <small role="alert">できませんでした</small>}
     </span>
