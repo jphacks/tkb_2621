@@ -10,6 +10,7 @@ from .auth import require_did
 from .exchange import router as exchange_router
 from .config import ALLOWED_ORIGINS, BACKEND_DID
 from .schemas import CutoutResponse
+from .timeline import router as timeline_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ app.add_middleware(
 
 
 app.include_router(exchange_router)
+app.include_router(timeline_router)
 
 
 @app.get("/health")
