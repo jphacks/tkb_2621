@@ -4,7 +4,7 @@ import { AtUri } from '@atproto/api'
 import QRCode from 'qrcode'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { getFieldMembers } from '../api/backend.ts'
+import { getFieldMembers, joinField } from '../api/backend.ts'
 import { centerPlacement, listOwnRecords } from '../api/binder.ts'
 import {
   createFieldPlacement,
@@ -99,6 +99,8 @@ export default function Field() {
       let fromServer: Did[] = []
       try {
         fromServer = (await getFieldMembers(agent, fieldUri)).members
+        // 自分の PDS では参加済みなのにサーバーが知らないときは、開いた時点で参加し直す
+        if (joined && !fromServer.includes(me)) fromServer = (await joinField(agent, f.ref)).members
       } catch (e) {
         // サーバーが読めなくても、自分と作った人の分は出す
         if (!cancelled) setMembersError(errorMessage(e))

@@ -55,8 +55,9 @@ export default function FieldJoin() {
     setJoining(true)
     setJoinError(undefined)
     try {
-      await writeMember(agent, did, field.ref)
+      // サーバーで断られたのに自分の PDS だけ参加中にならないように、サーバーが通ってから書く
       await joinField(agent, field.ref)
+      await writeMember(agent, did, field.ref)
       navigate(fieldPath(field.ref), { replace: true })
     } catch (e) {
       setJoinError(`参加できませんでした：${errorMessage(e)}`)
