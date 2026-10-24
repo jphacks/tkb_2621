@@ -5,6 +5,7 @@ import Timeline from './pages/Timeline.tsx'
 import Capture from './pages/Capture.tsx'
 import Binder from './pages/Binder.tsx'
 import Exchange from './pages/Exchange.tsx'
+import ExchangeJoin from './pages/ExchangeJoin.tsx'
 import StickerDetail from './pages/StickerDetail.tsx'
 import FieldList from './pages/FieldList.tsx'
 import Field from './pages/Field.tsx'
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/capture" element={<Capture />} />
           <Route path="/binder" element={<Binder />} />
           <Route path="/exchange" element={<Exchange />} />
+          <Route path="/exchange/join/:sessionId" element={<ExchangeJoin />} />
           <Route path="/exchange/:sessionId" element={<Exchange />} />
           <Route path="/sticker/:did/:rkey" element={<StickerDetail />} />
           <Route path="/fields" element={<FieldList />} />
