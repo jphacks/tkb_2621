@@ -80,7 +80,7 @@ NSID：`com.kosora623.pikkles.*`（アプリは `pikkles.kosora623.com` で公�
 
 ```text
 app.<ns>.sticker          ステッカー本体（rkey: TID）
-  image      blob      切り抜き済み透過PNG
+  image      blob      切り抜き済み透過PNG。最大1MB（/cutout で長辺を1024pxに縮めてから切り抜く）
   width      int
   height     int
   source     string    "photo" または "illustration"
@@ -90,14 +90,14 @@ app.<ns>.sticker          ステッカー本体（rkey: TID）
 app.<ns>.binder.page      シール帳の1ページ（rkey: ページ番号）
   placements[]
     sticker   strongRef
-    x, y      number    0〜1に正規化
-    scale     number
-    rotation  number    度
-    z         int
+    x, y      int       中心の位置。幅・高さを10000とした値。はみ出しを許して -2000〜12000
+    scale     int       1000で等倍。100〜5000（0.1倍〜5倍）
+    rotation  int       度（時計回り）。-180〜180
+    z         int       重なり順。0以上、大きいほど上
   updatedAt  datetime
 
 app.<ns>.exchange         交換の記録（2人がそれぞれ自分のPDSに書く）
-  sessionId  string
+  sessionId  string    最大128文字
   occasion   string    任意、最大50文字。交換した場面（手入力。位置情報ではない）
   partner    did
   gave       strongRef  自分が渡したステッカー
@@ -105,19 +105,22 @@ app.<ns>.exchange         交換の記録（2人がそれぞれ自分のPDSに�
   createdAt  datetime
 
 app.<ns>.field            共同フィールド（作った人のPDS）
-  title, createdAt
+  title（最大50文字）, createdAt
 
 app.<ns>.field.member     参加の記録（参加者のPDS）
   field (strongRef), createdAt
 
 app.<ns>.field.placement  共同フィールドへの貼り付け（貼った人のPDS）
   field (strongRef), sticker (strongRef, 自分のもののみ), x, y, scale, rotation, z, createdAt
+  （x, y, scale, rotation, z の単位と範囲は binder.page の placements と同じ）
 
 app.<ns>.want             「ほしい」
   subject (strongRef), createdAt
 ```
 
-注意：このLexiconは設計の下書き。Lexiconの定義ファイル（JSON）はHack Day開始後に作る。
+Lexiconの定義ファイル（JSON）は `lexicons/`、TypeScriptの型は `frontend/src/lexicon-types.ts` にある（2026-10-24作成）。
+
+数値は整数で持つ（2026-10-24変更）：AT Protocolのデータに小数は入らないため、位置・拡大率・回転は上のとおり単位を決めた整数にする。「最大◯文字」は書記素の数（`maxGraphemes`）で数え、バイト数の上限（`maxLength`）はその10倍にする。
 
 交換が保証するもの：画像の所有権ではなく、「このアプリで自分のシール帳に貼れる権利」と「誰と交換したかという記録」。
 
@@ -165,7 +168,7 @@ app.<ns>.want             「ほしい」
 
 | メソッド | パス | 用途 | 入力 | 出力 |
 | --- | --- | --- | --- | --- |
-| POST | `/cutout` | 切り抜き・白フチ・影 | 画像（multipart） | 透過PNG、幅、高さ |
+| POST | `/cutout` | 切り抜き・白フチ・影 | 画像（multipart） | JSON：`image`（base64の透過PNG）、`width`、`height`。長辺を1024pxに縮めてから処理し、1MBに収める |
 | POST | `/exchange/sessions` | 交換セッション開始 | `occasion`（任意） | `sessionId`、QR用URL |
 | POST | `/exchange/sessions/{id}/join` | 参加 | なし | セッション状態 |
 | WS | `/exchange/sessions/{id}/ws` | 選択・確定の同期 | strongRef、確定 | 相手の選択、確定状態 |
@@ -177,10 +180,11 @@ app.<ns>.want             「ほしい」
 WebSocketメッセージ（案）
 
 ```text
+→ {"type": "auth", "token": "…"}
 → {"type": "select", "sticker": {"uri": "at://…", "cid": "…"}}
 → {"type": "confirm"}
 ← {"type": "partner_selected", "sticker": {…}}
-← {"type": "both_confirmed"}
+← {"type": "both_confirmed", "occasion": "…"}
 ← {"type": "completed", "exchange": {…}}
 ← {"type": "cancelled", "reason": "…"}
 ```
