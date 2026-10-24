@@ -63,6 +63,16 @@ export async function getSticker(ref: StrongRef): Promise<Sticker> {
   return data.value
 }
 
+/** did と rkey だけでステッカーを読む（/sticker/:did/:rkey から開いたとき）。cid は読めた記録のもの */
+export async function getStickerByRkey(did: Did, rkey: string): Promise<{ ref: StrongRef; sticker: Sticker }> {
+  const { pds } = await resolveDid(did)
+  const params = new URLSearchParams({ repo: did, collection: NSID.sticker, rkey })
+  const res = await fetch(`${pds}/xrpc/com.atproto.repo.getRecord?${params}`)
+  if (!res.ok) throw new Error(`ステッカーが読めません（${res.status}）`)
+  const data = (await res.json()) as { uri: string; cid: string; value: Sticker }
+  return { ref: { uri: data.uri, cid: data.cid }, sticker: data.value }
+}
+
 /** 一言の上限（書記素の数） */
 export const CAPTION_MAX = 100
 
