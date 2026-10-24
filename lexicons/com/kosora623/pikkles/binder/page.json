@@ -1,0 +1,55 @@
+{
+  "lexicon": 1,
+  "id": "com.kosora623.pikkles.binder.page",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "シール帳の1ページ。rkey はページ番号。",
+      "key": "any",
+      "record": {
+        "type": "object",
+        "required": ["placements", "updatedAt"],
+        "properties": {
+          "placements": {
+            "type": "array",
+            "items": { "type": "ref", "ref": "#placement" }
+          },
+          "updatedAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "description": "ページ上のステッカー1枚の配置。Lexicon に小数は無いので整数で持つ。",
+      "required": ["sticker", "x", "y", "scale", "rotation", "z"],
+      "properties": {
+        "sticker": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+        "x": {
+          "type": "integer",
+          "description": "ステッカー中心の横位置。ページ幅を10000とした値。端からはみ出して貼れるよう -2000〜12000",
+          "minimum": -2000,
+          "maximum": 12000
+        },
+        "y": {
+          "type": "integer",
+          "description": "ステッカー中心の縦位置。ページ高さを10000とした値。端からはみ出して貼れるよう -2000〜12000",
+          "minimum": -2000,
+          "maximum": 12000
+        },
+        "scale": {
+          "type": "integer",
+          "description": "拡大率。1000で等倍（100 = 0.1倍、5000 = 5倍）",
+          "minimum": 100,
+          "maximum": 5000
+        },
+        "rotation": {
+          "type": "integer",
+          "description": "回転（度、時計回り）",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "z": { "type": "integer", "description": "重なり順。大きいほど上", "minimum": 0 }
+      }
+    }
+  }
+}

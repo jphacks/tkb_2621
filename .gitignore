@@ -1,0 +1,23 @@
+# 秘密の値
+.env
+.env.*
+!.env.example
+
+# Node / frontend
+node_modules/
+dist/
+*.local
+*.log
+.vercel/
+
+# Python / backend
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# エディタ・OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
