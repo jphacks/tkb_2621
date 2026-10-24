@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from urllib.parse import unquote
 
-from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import cutout as cutout_service
@@ -12,6 +12,7 @@ from .config import ALLOWED_ORIGINS, BACKEND_DID
 from .schemas import CutoutResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -65,8 +66,15 @@ def me(did: str = Depends(require_did)) -> dict[str, str]:
 
 
 @app.post("/cutout")
-def cutout(image: UploadFile = File(...)) -> CutoutResponse:
+def cutout(
+    image: UploadFile = File(...),
+    source: cutout_service.CutoutSource = Form("photo"),
+    did: str = Depends(require_did),
+) -> CutoutResponse:
+    logger.info("cutout requested: did=%s source=%s", did, source)
     try:
-        return cutout_service.cutout(image.file.read())
+        return cutout_service.cutout(image.file.read(), source)
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+    except cutout_service.OutputTooLargeError as e:
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "画像を 1MB に収められませんでした") from e
