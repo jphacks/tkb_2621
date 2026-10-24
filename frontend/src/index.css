@@ -50,3 +50,16 @@ body {
   color: #222;
   font-weight: bold;
 }
+
+.login-primary {
+  display: block;
+  width: 100%;
+  padding: 16px;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.login-other {
+  margin-top: 16px;
+  font-size: 0.85rem;
+}
