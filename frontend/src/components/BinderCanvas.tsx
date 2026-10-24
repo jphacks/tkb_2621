@@ -16,6 +16,8 @@ export interface CanvasItem {
   imageUrl?: string
   width: number
   height: number
+  /** true なら動かせない（共同フィールドの他人のステッカー）。タップすると onTapLocked */
+  locked?: boolean
 }
 
 function useHtmlImage(url: string | undefined): HTMLImageElement | undefined {
@@ -40,6 +42,7 @@ function StickerNode(props: {
   register: (node: Konva.Image | null) => void
   onSelect: () => void
   onChange: (node: Konva.Image) => void
+  onTapLocked?: () => void
 }) {
   const { item, pageWidth, register } = props
   const image = useHtmlImage(item.imageUrl)
@@ -62,10 +65,12 @@ function StickerNode(props: {
       scaleX={view.scale}
       scaleY={view.scale}
       rotation={view.rotation}
-      draggable
-      onMouseDown={props.onSelect}
+      draggable={!item.locked}
+      onMouseDown={item.locked ? undefined : props.onSelect}
       // 2本指目で別のステッカーに触れても、選んでいるものは変えない
-      onTouchStart={(e) => e.evt.touches.length === 1 && props.onSelect()}
+      onTouchStart={item.locked ? undefined : (e) => e.evt.touches.length === 1 && props.onSelect()}
+      onClick={item.locked ? props.onTapLocked : undefined}
+      onTap={item.locked ? props.onTapLocked : undefined}
       onDragEnd={(e) => props.onChange(e.target as Konva.Image)}
       onTransformEnd={(e) => props.onChange(e.target as Konva.Image)}
     />
@@ -92,8 +97,10 @@ export default function BinderCanvas(props: {
   onFront: (id: string) => void
   /** 動かし終わったときの配置（Lexicon の整数の単位） */
   onChange: (id: string, placement: Placement) => void
+  /** locked のステッカーをタップしたとき */
+  onTapLocked?: (id: string) => void
 }) {
-  const { items, onFront, onChange } = props
+  const { items, onFront, onChange, onTapLocked } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const [pageWidth, setPageWidth] = useState(0)
   const [selectedId, setSelectedId] = useState<string>()
@@ -190,6 +197,7 @@ export default function BinderCanvas(props: {
                 }}
                 onSelect={() => select(item.id)}
                 onChange={(node) => commit(item.id, node)}
+                onTapLocked={onTapLocked && (() => onTapLocked(item.id))}
               />
             ))}
             {selected && (

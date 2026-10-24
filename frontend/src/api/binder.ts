@@ -65,14 +65,14 @@ export interface OwnedSticker {
   imageUrl: string
 }
 
-interface ListedRecord<T> {
+export interface ListedRecord<T> {
   uri: string
   cid: string
   value: T
 }
 
 /** 自分の PDS のレコードを全部読む */
-async function listOwnRecords<T>(agent: Agent, did: Did, collection: string): Promise<ListedRecord<T>[]> {
+export async function listOwnRecords<T>(agent: Agent, did: Did, collection: string): Promise<ListedRecord<T>[]> {
   const out: ListedRecord<T>[] = []
   let cursor: string | undefined
   do {
@@ -84,7 +84,7 @@ async function listOwnRecords<T>(agent: Agent, did: Did, collection: string): Pr
 }
 
 /** 他人の PDS のレコードを全部読む（ログイン不要の公開 API） */
-async function listPublicRecords<T>(did: Did, collection: string): Promise<ListedRecord<T>[]> {
+export async function listPublicRecords<T>(did: Did, collection: string): Promise<ListedRecord<T>[]> {
   const { pds } = await resolveDid(did)
   const out: ListedRecord<T>[] = []
   let cursor: string | undefined

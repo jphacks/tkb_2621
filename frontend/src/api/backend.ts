@@ -41,6 +41,10 @@ export interface ExchangeView {
   createdAt: string
 }
 
+export interface FieldMembersResponse {
+  members: Did[]
+}
+
 export type ClientMessage = { type: 'select'; sticker: StrongRef } | { type: 'confirm' }
 
 export type ServerMessage =
@@ -149,6 +153,15 @@ export function joinSession(agent: Agent, sessionId: string, t: string): Promise
 
 export function commitExchange(agent: Agent, sessionId: string, uri: string): Promise<CommitResponse> {
   return backendFetch(agent, `/exchange/sessions/${encodeURIComponent(sessionId)}/commit`, { method: 'POST', body: { uri } })
+}
+
+/** 呼んだ人を共同フィールドのメンバーとして登録する（spec 7章1のタイムライン用） */
+export function joinField(agent: Agent, field: StrongRef): Promise<FieldMembersResponse> {
+  return backendFetch(agent, '/fields/join', { method: 'POST', body: { field } })
+}
+
+export function getFieldMembers(agent: Agent, uri: string): Promise<FieldMembersResponse> {
+  return backendFetch(agent, `/fields/members?${new URLSearchParams({ uri })}`, { method: 'GET' })
 }
 
 // ---- WebSocket ----

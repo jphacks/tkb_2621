@@ -9,6 +9,7 @@ import ExchangeJoin from './pages/ExchangeJoin.tsx'
 import StickerDetail from './pages/StickerDetail.tsx'
 import FieldList from './pages/FieldList.tsx'
 import Field from './pages/Field.tsx'
+import FieldJoin from './pages/FieldJoin.tsx'
 import OAuthCallback from './pages/OAuthCallback.tsx'
 import Debug from './pages/Debug.tsx'
 
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/exchange/:sessionId" element={<Exchange />} />
           <Route path="/sticker/:did/:rkey" element={<StickerDetail />} />
           <Route path="/fields" element={<FieldList />} />
+          <Route path="/fields/join" element={<FieldJoin />} />
           <Route path="/fields/:did/:rkey" element={<Field />} />
         </Route>
       </Routes>
