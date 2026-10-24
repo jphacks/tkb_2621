@@ -1,6 +1,6 @@
-// 他人の PDS のステッカーを読む・画像の URL を作る（ログイン不要の公開 API）
-import { AtUri } from '@atproto/api'
-import type { BlobRef, Did, StrongRef, Sticker } from '../lexicon-types.ts'
+// ステッカーを読む・画像の URL を作る（ログイン不要の公開 API）と、自分のステッカーを保存・削除する（ログイン中の agent）
+import { AtUri, type Agent } from '@atproto/api'
+import { NSID, type BlobRef, type Did, type StrongRef, type Sticker } from '../lexicon-types.ts'
 
 export interface DidInfo {
   pds: string
@@ -61,4 +61,44 @@ export async function getSticker(ref: StrongRef): Promise<Sticker> {
   if (!res.ok) throw new Error(`ステッカーが読めません（${res.status}）`)
   const data = (await res.json()) as { value: Sticker }
   return data.value
+}
+
+/** 一言の上限（書記素の数） */
+export const CAPTION_MAX = 100
+
+export function countGraphemes(text: string): number {
+  return [...new Intl.Segmenter('ja', { granularity: 'grapheme' }).segment(text)].length
+}
+
+export interface NewSticker {
+  /** /cutout が返した透過PNG */
+  png: Blob
+  width: number
+  height: number
+  source: Sticker['source']
+  caption?: string
+}
+
+/** 自分の PDS に uploadBlob → createRecord で保存する。createdAt は保存した時刻（EXIF は読まない） */
+export async function createSticker(agent: Agent, did: Did, sticker: NewSticker): Promise<StrongRef> {
+  const { data: uploaded } = await agent.uploadBlob(sticker.png, { encoding: 'image/png' })
+  const caption = sticker.caption?.trim()
+  const record: Sticker = {
+    $type: NSID.sticker,
+    image: uploaded.blob.toJSON() as BlobRef,
+    width: sticker.width,
+    height: sticker.height,
+    source: sticker.source,
+    ...(caption ? { caption } : {}),
+    createdAt: new Date().toISOString(),
+  }
+  const { data } = await agent.com.atproto.repo.createRecord({ repo: did, collection: NSID.sticker, record: { ...record } })
+  return { uri: data.uri, cid: data.cid }
+}
+
+/** 自分のステッカーを消す。他人のものは消せない */
+export async function deleteSticker(agent: Agent, did: Did, uri: string): Promise<void> {
+  const at = new AtUri(uri)
+  if (at.host !== did || at.collection !== NSID.sticker) throw new Error('自分のステッカーではありません')
+  await agent.com.atproto.repo.deleteRecord({ repo: did, collection: NSID.sticker, rkey: at.rkey })
 }
