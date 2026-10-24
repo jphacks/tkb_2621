@@ -20,6 +20,7 @@ import { resolveDid, stickerImageUrl } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
+import WantButton from '../components/WantButton.tsx'
 import { NSID, type Did, type Placement, type StrongRef, type Sticker } from '../lexicon-types.ts'
 
 const SAVE_DELAY_MS = 1000
@@ -286,7 +287,8 @@ export default function Field() {
           <p style={{ margin: '0 0 8px' }}>
             {nameOf(tapped.author)} のステッカーです。交換すると自分のシール帳に貼れます
           </p>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {agent && me && <WantButton key={tapped.uri} agent={agent} did={me} subject={tapped.placement.sticker} />}
             <button type="button" onClick={() => navigate('/exchange')}>
               交換する
             </button>

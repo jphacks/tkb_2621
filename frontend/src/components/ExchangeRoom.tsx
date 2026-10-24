@@ -10,7 +10,9 @@ import {
   type ExchangeView,
   type ServerMessage,
 } from '../api/backend.ts'
+import { follow, isFollowing } from '../api/follow.ts'
 import { getSticker, resolveDid, stickerImageUrl } from '../api/sticker.ts'
+import { listWantedBy } from '../api/want.ts'
 import { NSID, type Did, type Exchange, type StrongRef, type Sticker } from '../lexicon-types.ts'
 
 interface MySticker {
@@ -33,6 +35,48 @@ function errorMessage(e: unknown): string {
 
 const IMAGE_SIZE = 96
 
+/** 交換成立後に「Blueskyでもフォローする？」と聞く（spec 3章 #13）。押したときだけフォローを書く。フォロー済みなら出さない */
+function FollowPrompt({ agent, did, partner, handle }: { agent: Agent; did: Did; partner: Did; handle?: string }) {
+  const [state, setState] = useState<'checking' | 'ask' | 'following' | 'sending' | 'done' | 'error'>('checking')
+
+  useEffect(() => {
+    let cancelled = false
+    isFollowing(did, partner)
+      .then((following) => !cancelled && setState(following ? 'following' : 'ask'))
+      // 確かめられなかったときは聞く（選んだときだけ書くので、勝手には増えない）
+      .catch(() => !cancelled && setState('ask'))
+    return () => {
+      cancelled = true
+    }
+  }, [did, partner])
+
+  async function onFollow() {
+    setState('sending')
+    try {
+      await follow(agent, did, partner)
+      setState('done')
+    } catch {
+      setState('error')
+    }
+  }
+
+  if (state === 'checking' || state === 'following') return null
+  if (state === 'done') return <p>Blueskyでフォローしました</p>
+  const name = handle ? `@${handle}` : partner
+  return (
+    <p>
+      <button type="button" onClick={() => void onFollow()} disabled={state === 'sending'}>
+        Blueskyでも{name}さんをフォローする
+      </button>
+      {state === 'error' && (
+        <small role="alert" style={{ display: 'block' }}>
+          フォローできませんでした。ログインし直すとできることがあります
+        </small>
+      )}
+    </p>
+  )
+}
+
 export default function ExchangeRoom(props: {
   agent: Agent
   did: Did
@@ -54,6 +98,8 @@ export default function ExchangeRoom(props: {
   const [partnerImage, setPartnerImage] = useState<string>()
   const [partnerHandle, setPartnerHandle] = useState<string>()
   const [rejected, setRejected] = useState(false)
+  /** 相手が「ほしい」を付けたステッカーの URI */
+  const [partnerWants, setPartnerWants] = useState<Set<string>>()
 
   const socketRef = useRef<ExchangeSocket>(undefined)
   // WebSocket のハンドラから最新の値を読むための写し
@@ -103,6 +149,19 @@ export default function ExchangeRoom(props: {
       cancelled = true
     }
   }, [partnerRef])
+
+  // 相手の「ほしい」。相手の DID は相手が選んだときに分かるので、それから読む
+  useEffect(() => {
+    if (!partnerDid) return
+    let cancelled = false
+    listWantedBy(partnerDid)
+      .then((wants) => !cancelled && setPartnerWants(wants))
+      // 読めなくても交換はできるので、並びを変えないだけにする
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [partnerDid])
 
   useEffect(() => {
     if (joined) onJoined?.()
@@ -197,6 +256,11 @@ export default function ExchangeRoom(props: {
     socketRef.current?.send({ type: 'confirm' })
   }
 
+  // 相手が「ほしい」を付けたものを先頭に。それ以外の並びは変えない
+  const sortedStickers = partnerWants
+    ? myStickers && [...myStickers].sort((a, b) => Number(partnerWants.has(b.ref.uri)) - Number(partnerWants.has(a.ref.uri)))
+    : myStickers
+
   const header = (
     <>
       <h1>対面交換</h1>
@@ -224,6 +288,7 @@ export default function ExchangeRoom(props: {
         <p>相手：{partnerHandle ? `@${partnerHandle}` : partner}</p>
         <p>場面：{shownOccasion || '（なし）'}</p>
         {partnerImage && <img src={partnerImage} alt="受け取ったステッカー" width={IMAGE_SIZE * 2} />}
+        {partner && <FollowPrompt agent={agent} did={did} partner={partner} handle={partnerHandle} />}
         <p>
           <Link to="/binder">シール帳へ</Link>
         </p>
@@ -321,8 +386,9 @@ export default function ExchangeRoom(props: {
         </p>
       )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {myStickers?.map((item) => {
+        {sortedStickers?.map((item) => {
           const isSelected = selected?.uri === item.ref.uri
+          const wanted = partnerWants?.has(item.ref.uri) ?? false
           return (
             <button
               key={item.ref.uri}
@@ -330,9 +396,14 @@ export default function ExchangeRoom(props: {
               onClick={() => select(item.ref)}
               disabled={confirmed}
               aria-pressed={isSelected}
-              style={{ padding: 4, border: isSelected ? '3px solid #e91e63' : '3px solid transparent' }}
+              style={{ position: 'relative', padding: 4, border: isSelected ? '3px solid #e91e63' : '3px solid transparent' }}
             >
               <img src={item.imageUrl} alt={item.sticker.caption ?? 'ステッカー'} width={IMAGE_SIZE} height={IMAGE_SIZE} style={{ objectFit: 'contain' }} />
+              {wanted && (
+                <span style={{ position: 'absolute', top: 2, left: 2, fontSize: 11, padding: '1px 4px', borderRadius: 8, background: '#e91e63', color: '#fff' }}>
+                  ♥ 相手がほしい
+                </span>
+              )}
             </button>
           )
         })}

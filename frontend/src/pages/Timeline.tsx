@@ -1,5 +1,5 @@
 // S2 タイムライン。GET /timeline を新しい順に並べ、下までスクロールしたら cursor で続きを読む。
-import { AtUri } from '@atproto/api'
+import { AtUri, type Agent } from '@atproto/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { getTimeline, type TimelineItem } from '../api/backend.ts'
@@ -7,6 +7,8 @@ import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import Handle from '../components/Handle.tsx'
 import StickerImage, { StickerBackdrop } from '../components/StickerImage.tsx'
+import WantButton from '../components/WantButton.tsx'
+import type { Did } from '../lexicon-types.ts'
 
 function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
@@ -32,17 +34,23 @@ function dedupe(items: TimelineItem[]): TimelineItem[] {
   })
 }
 
-function Event({ item }: { item: TimelineItem }) {
+function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did }) {
   const card = { display: 'block', padding: 12, marginBottom: 12, borderRadius: 12, background: 'rgba(255,255,255,0.6)', color: 'inherit', textDecoration: 'none' }
   if (item.kind === 'sticker') {
+    // 「ほしい」はリンクの外に置き、押しても詳細に飛ばないようにする
     return (
-      <Link to={stickerPath(item.uri)} style={card}>
-        <p style={{ margin: '0 0 8px' }}>
-          <Handle did={item.author} /> さんが新しいステッカーを作りました
-        </p>
-        <StickerImage did={item.author} sticker={item.record} maxHeight={240} />
-        <p style={{ margin: '8px 0 0', fontSize: 12, color: '#888' }}>{formatDateTime(item.createdAt)}</p>
-      </Link>
+      <div style={card}>
+        <Link to={stickerPath(item.uri)} style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>
+          <p style={{ margin: '0 0 8px' }}>
+            <Handle did={item.author} /> さんが新しいステッカーを作りました
+          </p>
+          <StickerImage did={item.author} sticker={item.record} maxHeight={240} />
+        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+          <span style={{ fontSize: 12, color: '#888' }}>{formatDateTime(item.createdAt)}</span>
+          <WantButton agent={agent} did={me} subject={{ uri: item.uri, cid: item.cid }} />
+        </div>
+      </div>
     )
   }
   return (
@@ -98,7 +106,7 @@ export default function Timeline() {
   }, [loadMore, error])
 
   if (auth.status === 'loading') return <p>読み込み中…</p>
-  if (auth.status === 'signedOut') return <Navigate to="/login" replace />
+  if (auth.status === 'signedOut' || !agent) return <Navigate to="/login" replace />
 
   const shown = dedupe(items)
 
@@ -107,7 +115,7 @@ export default function Timeline() {
       <h1 style={{ fontSize: 20 }}>タイムライン</h1>
       {done && shown.length === 0 && <p style={{ marginTop: 48, textAlign: 'center' }}>交換すると、相手の新しいステッカーがここに流れます</p>}
       {shown.map((item) => (
-        <Event key={item.uri} item={item} />
+        <Event key={item.uri} item={item} agent={agent} me={auth.did} />
       ))}
       {loading && <p>読み込み中…</p>}
       {loading && <BackendWaking />}
