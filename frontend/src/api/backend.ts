@@ -2,7 +2,7 @@
 import type { Agent } from '@atproto/api'
 import { useSyncExternalStore } from 'react'
 import { SERVICE_AUTH_LXM } from '../auth/scope.ts'
-import type { Did, StrongRef, Sticker } from '../lexicon-types.ts'
+import type { Did, Exchange, StrongRef, Sticker } from '../lexicon-types.ts'
 
 // ---- schemas.py と同じ形 ----
 
@@ -43,6 +43,23 @@ export interface ExchangeView {
 
 export interface FieldMembersResponse {
   members: Did[]
+}
+
+interface TimelineItemBase {
+  /** 出来事を書いた人の DID */
+  author: Did
+  uri: string
+  cid: string
+  createdAt: string
+}
+
+export type TimelineItem =
+  | (TimelineItemBase & { kind: 'sticker'; record: Sticker })
+  | (TimelineItemBase & { kind: 'exchange'; record: Exchange })
+
+export interface TimelineResponse {
+  items: TimelineItem[]
+  cursor?: string | null
 }
 
 export type ClientMessage = { type: 'select'; sticker: StrongRef } | { type: 'confirm' }
@@ -162,6 +179,13 @@ export function joinField(agent: Agent, field: StrongRef): Promise<FieldMembersR
 
 export function getFieldMembers(agent: Agent, uri: string): Promise<FieldMembersResponse> {
   return backendFetch(agent, `/fields/members?${new URLSearchParams({ uri })}`, { method: 'GET' })
+}
+
+/** 交換相手と共同フィールドのメンバーの出来事を新しい順に。続きは返ってきた cursor で読む */
+export function getTimeline(agent: Agent, cursor?: string, limit = 30): Promise<TimelineResponse> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (cursor) params.set('cursor', cursor)
+  return backendFetch(agent, `/timeline?${params}`, { method: 'GET' })
 }
 
 // ---- WebSocket ----
