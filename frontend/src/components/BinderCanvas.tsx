@@ -93,6 +93,10 @@ function touchGeometry(touches: TouchList) {
 
 export default function BinderCanvas(props: {
   items: CanvasItem[]
+  /** 選んでいるもの（親が持つ。「はがす」を出すため） */
+  selectedId: string | undefined
+  /** ステッカーをタップしたとき、または何もないところをタップしたとき（undefined） */
+  onSelect: (id: string | undefined) => void
   /** 触ったものを一番上にする */
   onFront: (id: string) => void
   /** 動かし終わったときの配置（Lexicon の整数の単位） */
@@ -100,10 +104,9 @@ export default function BinderCanvas(props: {
   /** locked のステッカーをタップしたとき */
   onTapLocked?: (id: string) => void
 }) {
-  const { items, onFront, onChange, onTapLocked } = props
+  const { items, selectedId, onSelect, onFront, onChange, onTapLocked } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const [pageWidth, setPageWidth] = useState(0)
-  const [selectedId, setSelectedId] = useState<string>()
   const nodes = useRef(new Map<string, Konva.Image>())
   const transformerRef = useRef<Konva.Transformer>(null)
   const pinch = useRef<Pinch | undefined>(undefined)
@@ -141,7 +144,7 @@ export default function BinderCanvas(props: {
   }
 
   function select(id: string) {
-    setSelectedId(id)
+    onSelect(id)
     onFront(id)
   }
 
@@ -181,8 +184,8 @@ export default function BinderCanvas(props: {
           height={pageHeight}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
-          onMouseDown={(e) => e.target === e.target.getStage() && setSelectedId(undefined)}
-          onTouchStart={(e) => e.evt.touches.length === 1 && e.target === e.target.getStage() && setSelectedId(undefined)}
+          onMouseDown={(e) => e.target === e.target.getStage() && onSelect(undefined)}
+          onTouchStart={(e) => e.evt.touches.length === 1 && e.target === e.target.getStage() && onSelect(undefined)}
         >
           <Layer>
             <Rect width={pageWidth} height={pageHeight} fill="#fffdf6" stroke="#ccc" listening={false} />
@@ -197,7 +200,11 @@ export default function BinderCanvas(props: {
                 }}
                 onSelect={() => select(item.id)}
                 onChange={(node) => commit(item.id, node)}
-                onTapLocked={onTapLocked && (() => onTapLocked(item.id))}
+                onTapLocked={() => {
+                  // 他人のものをタップしたら、選んでいた自分のものは外す
+                  onSelect(undefined)
+                  onTapLocked?.(item.id)
+                }}
               />
             ))}
             {selected && (

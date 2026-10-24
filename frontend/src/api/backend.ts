@@ -43,6 +43,12 @@ export interface ExchangeView {
 
 export interface FieldMembersResponse {
   members: Did[]
+  /** 残りが0人になった・作った人が削除した。閉じたフィールドへの参加は 410 */
+  closed: boolean
+}
+
+export interface OkResponse {
+  ok: boolean
 }
 
 interface TimelineItemBase {
@@ -114,7 +120,7 @@ export function useBackendWaking(): boolean {
 }
 
 /** body が FormData なら multipart で、それ以外は JSON で送る */
-async function backendFetch<T>(agent: Agent, path: string, init: { method: 'GET' | 'POST'; body?: unknown }): Promise<T> {
+async function backendFetch<T>(agent: Agent, path: string, init: { method: 'GET' | 'POST' | 'DELETE'; body?: unknown }): Promise<T> {
   const token = await getToken(agent)
   let slow = false
   const timer = setTimeout(() => {
@@ -179,6 +185,16 @@ export function joinField(agent: Agent, field: StrongRef): Promise<FieldMembersR
 
 export function getFieldMembers(agent: Agent, uri: string): Promise<FieldMembersResponse> {
   return backendFetch(agent, `/fields/members?${new URLSearchParams({ uri })}`, { method: 'GET' })
+}
+
+/** 呼んだ人をメンバーから外す。残りが0人なら closed: true */
+export function leaveFieldOnServer(agent: Agent, uri: string): Promise<FieldMembersResponse> {
+  return backendFetch(agent, `/fields/members?${new URLSearchParams({ uri })}`, { method: 'DELETE' })
+}
+
+/** メンバーを全部消して閉じる。作った人だけ */
+export function deleteFieldOnServer(agent: Agent, uri: string): Promise<OkResponse> {
+  return backendFetch(agent, `/fields?${new URLSearchParams({ uri })}`, { method: 'DELETE' })
 }
 
 /** 交換相手と共同フィールドのメンバーの出来事を新しい順に。続きは返ってきた cursor で読む */

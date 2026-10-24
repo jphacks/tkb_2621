@@ -1,20 +1,26 @@
 // S8 共同フィールド。メンバー全員の field.placement を1枚のキャンバスに重ねる。
 // 自分のステッカー（交換で受け取ったものは除く）だけを貼れ、動かし終わって1秒たったら自分の field.placement を書き直す。
 // 他のメンバーの貼り付け・移動・削除は Jetstream（api/fieldLive.ts）でその場に反映する。
+// 自分の貼り付けは選んで「はがす」で消せる。作った人は「フィールドを削除」、それ以外は「抜ける」。
 import { AtUri } from '@atproto/api'
 import QRCode from 'qrcode'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { getFieldMembers, joinField } from '../api/backend.ts'
+import { BackendError, getFieldMembers, joinField } from '../api/backend.ts'
 import { centerPlacement, listOwnRecords } from '../api/binder.ts'
 import {
+  FieldDeletedError,
   createFieldPlacement,
+  deleteField,
+  deleteFieldPlacement,
   getField,
   inviteUrl,
   isMember,
+  leaveField,
   listFieldItems,
   loadFieldItem,
   putFieldPlacement,
+  removeOwnFieldRecords,
   toPlacementOnly,
   type FieldItem,
   type FieldView,
@@ -77,7 +83,16 @@ function maxZ(list: FieldItem[]): number {
  * 読み直した結果を画面の状態に混ぜる。自分の貼り付けは画面の状態が正（保存待ちの動きを消さない）。
  * 読み始めたあとに Jetstream で変わった（消えた）ものも、画面の状態を残す。
  */
-function mergeItems(current: FieldItem[] | undefined, fresh: FieldItem[], me: Did, started: number, touched: Map<string, number>): FieldItem[] {
+function mergeItems(
+  current: FieldItem[] | undefined,
+  fetched: FieldItem[],
+  me: Did,
+  started: number,
+  touched: Map<string, number>,
+  removed: Set<string>,
+): FieldItem[] {
+  // はがしたものは、消す前に読み始めた結果に残っていても戻さない
+  const fresh = fetched.filter((item) => !removed.has(item.uri))
   if (!current) return fresh
   const keepLocal = (item: FieldItem) => item.author === me || (touched.get(item.uri) ?? 0) >= started
   const local = new Map(current.map((item) => [item.uri, item]))
@@ -118,6 +133,10 @@ export default function Field() {
   const [pasting, setPasting] = useState(false)
   const [tapped, setTapped] = useState<FieldItem>()
   const [showInvite, setShowInvite] = useState(false)
+  const [selectedId, setSelectedId] = useState<string>()
+  /** field が無い・サーバーで閉じた */
+  const [deleted, setDeleted] = useState(false)
+  const [busy, setBusy] = useState(false)
 
   // ---- 読み込み（開いたとき・30秒ごと・Jetstream をつなぎ直したとき・画面に戻ったとき） ----
   const fieldRef = useRef<FieldView | undefined>(undefined)
@@ -129,6 +148,8 @@ export default function Field() {
   }, [items])
   // Jetstream で変わった時刻。それより前に読み始めた PDS の結果で、新しい内容を古い内容に戻さない
   const touched = useRef(new Map<string, number>())
+  // はがした自分の field.placement の URI
+  const removed = useRef(new Set<string>())
 
   const refresh = useCallback(
     async (isCancelled: () => boolean) => {
@@ -138,11 +159,21 @@ export default function Field() {
       const started = Date.now()
       let fromServer: Did[] = []
       try {
-        fromServer = (await getFieldMembers(agent, fieldUri)).members
+        const res = await getFieldMembers(agent, fieldUri)
+        if (res.closed) {
+          if (!isCancelled()) setDeleted(true)
+          return
+        }
+        fromServer = res.members
         // 自分の PDS では参加済みなのにサーバーが知らないときは、開いた時点で参加し直す
         if (joined && !fromServer.includes(me)) fromServer = (await joinField(agent, f.ref)).members
         if (!isCancelled()) setMembersError(undefined)
       } catch (e) {
+        // 410: 閉じたフィールドには参加し直せない
+        if (e instanceof BackendError && e.status === 410) {
+          if (!isCancelled()) setDeleted(true)
+          return
+        }
         // サーバーが読めなくても、自分と作った人の分は出す
         if (!isCancelled()) setMembersError(errorMessage(e))
       }
@@ -151,7 +182,7 @@ export default function Field() {
       membersRef.current = new Set(all)
       setMembers((prev) => (prev && prev.join() === all.join() ? prev : all))
       const list = await listFieldItems(fieldUri, all)
-      if (!isCancelled()) setItems((current) => mergeItems(current, list, me, started, touched.current))
+      if (!isCancelled()) setItems((current) => mergeItems(current, list, me, started, touched.current, removed.current))
     },
     [agent, me, fieldUri],
   )
@@ -160,18 +191,27 @@ export default function Field() {
     if (!agent || !me) return
     let cancelled = false
     ;(async () => {
-      const f = await getField(fieldUri)
+      let f: FieldView | undefined
+      try {
+        f = await getField(fieldUri)
+      } catch (e) {
+        if (!(e instanceof FieldDeletedError)) throw e
+      }
       if (cancelled) return
-      fieldRef.current = f
-      membersRef.current = new Set()
-      touched.current.clear()
-      setField(f)
-      setItems(undefined)
+      setDeleted(!f)
+      if (f) {
+        fieldRef.current = f
+        membersRef.current = new Set()
+        touched.current.clear()
+        removed.current.clear()
+        setField(f)
+        setItems(undefined)
+      }
       const joined = await isMember(agent, me, fieldUri)
       if (cancelled) return
       joinedRef.current = joined
       setMember(joined)
-      await refresh(() => cancelled)
+      if (f) await refresh(() => cancelled)
     })().catch((e: unknown) => !cancelled && setError(errorMessage(e)))
 
     listOwnRecords<Sticker>(agent, me, NSID.sticker)
@@ -188,7 +228,7 @@ export default function Field() {
   // ---- 他のメンバーの変更をその場で反映する（Jetstream）。取りこぼしは30秒ごとの読み直しで埋める ----
   const liveLatest = useRef(new Map<string, FieldPlacement>())
   useEffect(() => {
-    if (!field || !me) return
+    if (!field || !me || deleted) return
     let stopped = false
     let membersTimer: ReturnType<typeof setTimeout> | undefined
     const reload = () => void refresh(() => stopped).catch(() => undefined)
@@ -240,7 +280,7 @@ export default function Field() {
       document.removeEventListener('visibilitychange', onVisible)
       unsubscribe()
     }
-  }, [field, me, refresh])
+  }, [field, me, deleted, refresh])
 
   // メンバーのハンドル
   useEffect(() => {
@@ -259,6 +299,8 @@ export default function Field() {
   // ---- 保存（最後に動かしてから1秒後。画面を閉じるときはすぐ） ----
   const pending = useRef(new Set<string>())
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // 保存中の書き直し。はがす・抜ける前に終わるのを待つ（消したあとに putRecord で作り直さないため）
+  const flushing = useRef<Promise<unknown>>(Promise.resolve())
 
   const flush = useCallback(async () => {
     clearTimeout(timer.current)
@@ -266,7 +308,7 @@ export default function Field() {
     const uris = [...pending.current]
     pending.current.clear()
     setSaveState('saving')
-    const results = await Promise.all(
+    const run = Promise.all(
       uris.map(async (uri) => {
         const item = itemsRef.current?.find((i) => i.uri === uri)
         if (!item) return true
@@ -280,6 +322,8 @@ export default function Field() {
         }
       }),
     )
+    flushing.current = run
+    const results = await run
     setSaveState(results.every(Boolean) ? (pending.current.size > 0 ? 'pending' : 'saved') : 'error')
   }, [agent, me, field])
 
@@ -339,6 +383,76 @@ export default function Field() {
     }
   }
 
+  /** 選んでいる自分の貼り付けを、自分の PDS から消す */
+  async function peel() {
+    const item = items?.find((i) => i.uri === selectedId && i.author === me)
+    if (!agent || !me || !item) return
+    setSelectedId(undefined)
+    pending.current.delete(item.uri)
+    removed.current.add(item.uri)
+    setItems((list) => list?.filter((i) => i.uri !== item.uri))
+    try {
+      await flushing.current
+      await deleteFieldPlacement(agent, me, item.uri)
+    } catch (e) {
+      removed.current.delete(item.uri)
+      setItems((list) => list && [...list.filter((i) => i.uri !== item.uri), item])
+      setError(`はがせませんでした：${errorMessage(e)}`)
+    }
+  }
+
+  /** 保存待ちを捨て、保存中のものが終わるのを待つ（このあと自分の field.placement を全部消すため） */
+  async function stopSaving() {
+    clearTimeout(timer.current)
+    pending.current.clear()
+    await flushing.current
+  }
+
+  async function onLeave() {
+    if (!agent || !me || !field) return
+    if (!window.confirm(`「${field.title}」から抜けますか？\n自分が貼ったステッカーはこのフィールドから外れます。`)) return
+    setBusy(true)
+    setError(undefined)
+    try {
+      await stopSaving()
+      await leaveField(agent, me, field)
+      navigate('/fields', { replace: true })
+    } catch (e) {
+      setError(`抜けられませんでした：${errorMessage(e)}`)
+      setBusy(false)
+    }
+  }
+
+  async function onDelete() {
+    if (!agent || !me || !field) return
+    if (!window.confirm(`「${field.title}」を削除しますか？\nメンバー全員の画面から消え、元に戻せません。`)) return
+    setBusy(true)
+    setError(undefined)
+    try {
+      await stopSaving()
+      await deleteField(agent, me, field)
+      navigate('/fields', { replace: true })
+    } catch (e) {
+      setError(`削除できませんでした：${errorMessage(e)}`)
+      setBusy(false)
+    }
+  }
+
+  /** 削除されたフィールドの、自分の field.member と field.placement を消す */
+  async function onRemoveFromList() {
+    if (!agent || !me) return
+    setBusy(true)
+    setError(undefined)
+    try {
+      await stopSaving()
+      await removeOwnFieldRecords(agent, me, fieldUri)
+      navigate('/fields', { replace: true })
+    } catch (e) {
+      setError(`一覧から外せませんでした：${errorMessage(e)}`)
+      setBusy(false)
+    }
+  }
+
   function nameOf(d: Did): string {
     return handles[d] ? `@${handles[d]}` : d
   }
@@ -353,6 +467,25 @@ export default function Field() {
   }))
 
   const joinPath = field ? `/fields/join?${new URLSearchParams({ uri: field.ref.uri, cid: field.ref.cid })}` : undefined
+  const selectedMine = items?.some((item) => item.uri === selectedId && item.author === me) ?? false
+
+  if (deleted) {
+    return (
+      <>
+        <p style={{ margin: 0 }}>
+          <Link to="/fields">← 一覧</Link>
+        </p>
+        <h1>{field?.title ?? '共同フィールド'}</h1>
+        <p role="alert">このフィールドは削除されました</p>
+        {error && <p role="alert">{error}</p>}
+        {member && (
+          <button type="button" onClick={() => void onRemoveFromList()} disabled={busy}>
+            {busy ? '外しています…' : '一覧から外す'}
+          </button>
+        )}
+      </>
+    )
+  }
 
   return (
     <>
@@ -375,6 +508,17 @@ export default function Field() {
         <button type="button" onClick={() => setShowInvite((v) => !v)} disabled={!field}>
           {showInvite ? '招待 QR を閉じる' : '招待 QR'}
         </button>
+        {member && field && (
+          field.creator === me ? (
+            <button type="button" onClick={() => void onDelete()} disabled={busy}>
+              {busy ? '削除しています…' : 'フィールドを削除'}
+            </button>
+          ) : (
+            <button type="button" onClick={() => void onLeave()} disabled={busy}>
+              {busy ? '抜けています…' : '抜ける'}
+            </button>
+          )
+        )}
         <small role="status">{SAVE_LABEL[saveState]}</small>
       </div>
 
@@ -388,6 +532,11 @@ export default function Field() {
       {canvasItems ? (
         <BinderCanvas
           items={canvasItems}
+          selectedId={selectedId}
+          onSelect={(id) => {
+            setSelectedId(id)
+            if (id) setTapped(undefined)
+          }}
           onFront={bringToFront}
           onChange={move}
           onTapLocked={(uri) => setTapped(items?.find((item) => item.uri === uri))}
@@ -421,6 +570,11 @@ export default function Field() {
 
       {member && (
         <div style={{ position: 'sticky', bottom: 0, background: '#fff', paddingTop: 8 }}>
+          {selectedMine && (
+            <button type="button" onClick={() => void peel()} style={{ width: '100%' }}>
+              はがす
+            </button>
+          )}
           <h2 style={{ fontSize: 14, margin: '8px 0' }}>自分のステッカー（タップで中央に貼る）</h2>
           {!mine && <p>読み込み中…</p>}
           {mine?.length === 0 && <p>まだステッカーがありません。撮影から作れます</p>}

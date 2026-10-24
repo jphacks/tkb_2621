@@ -1,7 +1,7 @@
 // 共同フィールドへの招待。iPhone のカメラで招待 QR を読むと Safari でこの URL（/fields/join?uri=…&cid=…）が開く。
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { joinField } from '../api/backend.ts'
+import { BackendError, joinField } from '../api/backend.ts'
 import { fieldPath, getField, writeMember, type FieldView } from '../api/field.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
@@ -60,7 +60,8 @@ export default function FieldJoin() {
       await writeMember(agent, did, field.ref)
       navigate(fieldPath(field.ref), { replace: true })
     } catch (e) {
-      setJoinError(`参加できませんでした：${errorMessage(e)}`)
+      // 410: 閉じた（削除された）フィールド
+      setJoinError(e instanceof BackendError && e.status === 410 ? 'このフィールドは削除されました' : `参加できませんでした：${errorMessage(e)}`)
       setJoining(false)
     }
   }
