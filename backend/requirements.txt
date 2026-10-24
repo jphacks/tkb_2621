@@ -1,2 +1,8 @@
 fastapi==0.162.0
 uvicorn[standard]==0.54.0
+atproto==0.0.73
+rembg==2.0.69
+onnxruntime==1.23.2
+pillow==12.3.0
+python-multipart==0.0.32
+psutil==7.2.2
