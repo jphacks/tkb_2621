@@ -125,8 +125,10 @@ export default function BinderCanvas(props: {
   onTapLocked?: (id: string) => void
   /** true ならビン（シール帳）の見た目にして、ステッカーをぷかぷか揺らす */
   jar?: boolean
+  /** true なら共同フィールドの見た目（白地にドット）にする。揺らさない */
+  board?: boolean
 }) {
-  const { items, selectedId, onSelect, onFront, onChange, onTapLocked, jar } = props
+  const { items, selectedId, onSelect, onFront, onChange, onTapLocked, jar, board } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const [pageWidth, setPageWidth] = useState(0)
   const nodes = useRef(new Map<string, Konva.Image>())
@@ -233,7 +235,7 @@ export default function BinderCanvas(props: {
   const sorted = [...items].sort((a, b) => a.placement.z - b.placement.z)
 
   return (
-    <div ref={containerRef} className={jar ? 'binder-jar' : undefined} style={jar ? undefined : { width: '100%' }}>
+    <div ref={containerRef} className={jar ? 'binder-jar' : board ? 'field-board' : undefined} style={jar || board ? undefined : { width: '100%' }}>
       {jar && (
         <div className="binder-bubbles" aria-hidden="true">
           {BUBBLES.map((b) => (
@@ -251,7 +253,7 @@ export default function BinderCanvas(props: {
           onTouchStart={(e) => e.evt.touches.length === 1 && e.target === e.target.getStage() && onSelect(undefined)}
         >
           <Layer>
-            {!jar && <Rect width={pageWidth} height={pageHeight} fill="#fffdf6" stroke="#ccc" listening={false} />}
+            {!jar && !board && <Rect width={pageWidth} height={pageHeight} fill="#fffdf6" stroke="#ccc" listening={false} />}
             {sorted.map((item) => (
               <StickerNode
                 key={item.id}

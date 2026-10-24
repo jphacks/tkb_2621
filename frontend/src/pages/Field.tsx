@@ -28,8 +28,10 @@ import {
 import { subscribeFieldPlacements } from '../api/fieldLive.ts'
 import { resolveDid, stickerImageUrl } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
+import Avatar from '../components/Avatar.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
+import PageHeader from '../components/PageHeader.tsx'
 import WantButton from '../components/WantButton.tsx'
 import { NSID, type Did, type FieldPlacement, type Placement, type StrongRef, type Sticker } from '../lexicon-types.ts'
 
@@ -38,7 +40,7 @@ const SAVE_DELAY_MS = 1000
 const REFRESH_INTERVAL_MS = 30_000
 // 知らない人の貼り付けが来てからメンバー一覧を読み直すまで。続けて来てもまとめて1回にする
 const MEMBERS_REFRESH_DELAY_MS = 1000
-const THUMB_SIZE = 64
+const THUMB_SIZE = 48
 
 type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
@@ -72,7 +74,7 @@ function QrCode({ url }: { url: string }) {
     }
   }, [url])
   if (!dataUrl) return <p>QR を作っています…</p>
-  return <img src={dataUrl} alt="招待用の QR コード" style={{ width: '100%', maxWidth: 360, imageRendering: 'pixelated' }} />
+  return <img src={dataUrl} alt="招待用の QR コード" className="exchange-qr-image" />
 }
 
 function maxZ(list: FieldItem[]): number {
@@ -469,17 +471,28 @@ export default function Field() {
   const joinPath = field ? `/fields/join?${new URLSearchParams({ uri: field.ref.uri, cid: field.ref.cid })}` : undefined
   const selectedMine = items?.some((item) => item.uri === selectedId && item.author === me) ?? false
 
+  const header = (
+    <>
+      <PageHeader title="共同フィールド" />
+      <div className="back-header field-header">
+        <Link to="/fields" className="icon-button" aria-label="一覧にもどる">
+          <img src="/images/back.svg" alt="" width={13} height={18} />
+        </Link>
+        <h1>{field?.title ?? '共同フィールド'}</h1>
+      </div>
+    </>
+  )
+
   if (deleted) {
     return (
       <>
-        <p style={{ margin: 0 }}>
-          <Link to="/fields">← 一覧</Link>
+        {header}
+        <p role="alert" className="notice">
+          このフィールドは削除されました
         </p>
-        <h1>{field?.title ?? '共同フィールド'}</h1>
-        <p role="alert">このフィールドは削除されました</p>
         {error && <p role="alert">{error}</p>}
         {member && (
-          <button type="button" onClick={() => void onRemoveFromList()} disabled={busy}>
+          <button type="button" className="btn btn-block field-remove" onClick={() => void onRemoveFromList()} disabled={busy}>
             {busy ? '外しています…' : '一覧から外す'}
           </button>
         )}
@@ -487,45 +500,50 @@ export default function Field() {
     )
   }
 
+  const shownMembers = members?.slice(0, 3) ?? []
+  const moreMembers = (members?.length ?? 0) - shownMembers.length
+
   return (
     <>
-      <p style={{ margin: 0 }}>
-        <Link to="/fields">← 一覧</Link>
-      </p>
-      <h1>{field?.title ?? '共同フィールド'}</h1>
+      {header}
+
+      <div className="field-toolbar">
+        <small role="status" className="text-muted">
+          {SAVE_LABEL[saveState]}
+        </small>
+        <span className="field-members" aria-label={`メンバー${members?.length ?? ''}人`}>
+          {shownMembers.map((d) => (
+            <Avatar key={d} did={d} size={28} />
+          ))}
+          {moreMembers > 0 && <span className="field-members-more">+{moreMembers}</span>}
+        </span>
+        <button
+          type="button"
+          className="round-button"
+          onClick={() => setShowInvite((v) => !v)}
+          disabled={!field}
+          aria-expanded={showInvite}
+          aria-label={showInvite ? '招待 QR を閉じる' : '招待 QR を出す'}
+        >
+          <img src="/images/scan.svg" alt="" width={12} height={12} />
+        </button>
+      </div>
 
       {error && <p role="alert">{error}</p>}
       {membersError && <small role="alert">メンバーの一部が読めませんでした（{membersError}）</small>}
       <BackendWaking />
 
       {member === false && joinPath && (
-        <p>
+        <p className="notice">
           まだ参加していません。<Link to={joinPath}>参加する</Link>
         </p>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-        <button type="button" onClick={() => setShowInvite((v) => !v)} disabled={!field}>
-          {showInvite ? '招待 QR を閉じる' : '招待 QR'}
-        </button>
-        {member && field && (
-          field.creator === me ? (
-            <button type="button" onClick={() => void onDelete()} disabled={busy}>
-              {busy ? '削除しています…' : 'フィールドを削除'}
-            </button>
-          ) : (
-            <button type="button" onClick={() => void onLeave()} disabled={busy}>
-              {busy ? '抜けています…' : '抜ける'}
-            </button>
-          )
-        )}
-        <small role="status">{SAVE_LABEL[saveState]}</small>
-      </div>
-
       {showInvite && field && (
-        <div style={{ textAlign: 'center', marginBottom: 8 }}>
+        <div className="card exchange-qr field-invite">
+          <p>招待 QR</p>
           <QrCode url={inviteUrl(field.ref)} />
-          <p style={{ fontSize: 12 }}>iPhone のカメラで読むと参加できます</p>
+          <p className="text-muted">iPhone のカメラで読むと参加できます</p>
         </div>
       )}
 
@@ -540,57 +558,71 @@ export default function Field() {
           onFront={bringToFront}
           onChange={move}
           onTapLocked={(uri) => setTapped(items?.find((item) => item.uri === uri))}
+          board
         />
       ) : (
-        !error && <p>読み込み中…</p>
+        !error && <p className="text-muted">読み込み中…</p>
       )}
 
       {tapped && (
-        <div role="dialog" style={{ border: '1px solid #ddd', borderRadius: 8, padding: 8, margin: '8px 0', background: '#fff' }}>
-          <p style={{ margin: '0 0 8px' }}>
-            {nameOf(tapped.author)} のステッカーです。交換すると自分のシール帳に貼れます
-          </p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div role="dialog" className="card field-tapped">
+          <p>{nameOf(tapped.author)} のステッカーです。交換すると自分のシール帳に貼れます</p>
+          <div className="field-tapped-actions">
             {agent && me && <WantButton key={tapped.uri} agent={agent} did={me} subject={tapped.placement.sticker} />}
-            <button type="button" onClick={() => navigate('/exchange')}>
+            <button type="button" className="btn btn-primary" onClick={() => navigate('/exchange')}>
               交換する
             </button>
-            <button type="button" onClick={() => navigate(`/sticker/${encodeURIComponent(tapped.author)}/${encodeURIComponent(new AtUri(tapped.placement.sticker.uri).rkey)}`)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => navigate(`/sticker/${encodeURIComponent(tapped.author)}/${encodeURIComponent(new AtUri(tapped.placement.sticker.uri).rkey)}`)}
+            >
               詳細
             </button>
-            <button type="button" onClick={() => setTapped(undefined)}>
+            <button type="button" className="btn" onClick={() => setTapped(undefined)}>
               閉じる
             </button>
           </div>
         </div>
       )}
 
-      <h2 style={{ fontSize: 14, margin: '8px 0' }}>メンバー（{members?.length ?? '…'}）</h2>
-      <p style={{ fontSize: 12, margin: 0 }}>{members?.map(nameOf).join('、')}</p>
-
       {member && (
-        <div style={{ position: 'sticky', bottom: 0, background: '#fff', paddingTop: 8 }}>
+        <div className="binder-dock">
           {selectedMine && (
-            <button type="button" onClick={() => void peel()} style={{ width: '100%' }}>
+            <button type="button" className="btn btn-block" onClick={() => void peel()}>
               はがす
             </button>
           )}
-          <h2 style={{ fontSize: 14, margin: '8px 0' }}>自分のステッカー（タップで中央に貼る）</h2>
-          {!mine && <p>読み込み中…</p>}
-          {mine?.length === 0 && <p>まだステッカーがありません。撮影から作れます</p>}
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
+          <div className="binder-hand-header">
+            <h2 className="section-title">手持ちのステッカー</h2>
+            {mine && mine.length > 0 && <span className="binder-hand-hint">{mine.length}枚・タップして貼る</span>}
+          </div>
+          {!mine && <p className="text-muted">読み込み中…</p>}
+          {mine?.length === 0 && <p className="text-muted">まだステッカーがありません。撮影から作れます</p>}
+          <div className="binder-hand">
             {mine?.map((sticker) => (
-              <button
-                key={sticker.ref.uri}
-                type="button"
-                onClick={() => void paste(sticker)}
-                disabled={!items || pasting}
-                style={{ flex: '0 0 auto', padding: 4, background: 'none', border: '1px solid #ddd', borderRadius: 8 }}
-              >
-                <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ステッカー'} width={THUMB_SIZE} height={THUMB_SIZE} style={{ objectFit: 'contain' }} />
+              <button key={sticker.ref.uri} type="button" className="binder-hand-item" onClick={() => void paste(sticker)} disabled={!items || pasting}>
+                <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ステッカー'} width={THUMB_SIZE} height={THUMB_SIZE} />
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      <h2 className="section-title field-members-title">メンバー（{members?.length ?? '…'}）</h2>
+      <p className="text-muted field-members-names">{members?.map(nameOf).join('、')}</p>
+
+      {member && field && (
+        <div className="field-manage">
+          {field.creator === me ? (
+            <button type="button" className="btn" onClick={() => void onDelete()} disabled={busy}>
+              {busy ? '削除しています…' : 'フィールドを削除'}
+            </button>
+          ) : (
+            <button type="button" className="btn" onClick={() => void onLeave()} disabled={busy}>
+              {busy ? '抜けています…' : '抜ける'}
+            </button>
+          )}
         </div>
       )}
     </>
