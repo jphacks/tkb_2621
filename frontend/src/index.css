@@ -31,6 +31,9 @@
   --color-tag-illustration: #95a0d7;
   --color-viewer: #343434;
   --color-viewer-frame: #f1f1f1;
+  --color-jar-from: rgba(108, 170, 75, 0.24);
+  --color-jar-to: rgba(69, 107, 59, 0.24);
+  --color-round-border: #959595;
   --color-tag-place: #9bd676;
   --color-tag-text: #f6f5f0;
 
@@ -791,6 +794,150 @@ label:focus-within:has(> .visually-hidden) {
 
 .capture-save {
   margin-top: var(--space-5);
+}
+
+.round-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--color-round-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.round-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.round-button-plus {
+  font-size: 24px;
+  font-weight: var(--font-weight-light);
+}
+
+/* ビン（シール帳） */
+.binder-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.binder-toolbar [role='status'] {
+  margin-right: auto;
+}
+
+.binder-page-number {
+  min-width: 36px;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.27em;
+}
+
+/* 漬け液のような薄い緑。キャンバスは透明にして、この背景と泡を透かす */
+.binder-jar {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-button);
+  background: linear-gradient(to bottom, var(--color-jar-from), var(--color-jar-to));
+}
+
+.binder-jar .konvajs-content {
+  position: relative;
+}
+
+.binder-bubbles img {
+  position: absolute;
+  animation: bubble-float 5s ease-in-out infinite alternate;
+}
+
+.binder-bubbles img:nth-child(2n) {
+  animation-duration: 3.5s;
+}
+
+@keyframes bubble-float {
+  to {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .binder-bubbles img {
+    animation: none;
+  }
+}
+
+.binder-dock {
+  position: sticky;
+  bottom: 0;
+  padding-top: var(--space-3);
+  background: var(--color-bg);
+}
+
+.binder-dock > .btn {
+  margin-bottom: var(--space-3);
+}
+
+.binder-hand-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.binder-hand-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.binder-hand {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding: var(--space-2) 0 var(--space-3);
+}
+
+.binder-hand-item {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 59px;
+  height: 60px;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-button);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.binder-hand-item img {
+  object-fit: contain;
+}
+
+/* 右上に少しはみ出させる。.binder-hand の上の余白に収まる分だけにして、横スクロールで切れないようにする */
+.binder-hand-owner {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: flex;
+}
+
+.binder-exchange {
+  margin-top: var(--space-4);
+  text-decoration: none;
 }
 
 .logo {

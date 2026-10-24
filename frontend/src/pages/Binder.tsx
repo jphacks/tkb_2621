@@ -1,14 +1,16 @@
 // S4 シール帳。手持ちのステッカーをページに貼り、動かし終わって1秒たったら binder.page に保存する。
 // 選んだものは「はがす」でページから外せる（ステッカー本体は消さない）。削除されたステッカーの配置は保存のときに落とす。
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { centerPlacement, findDeletedStickers, getPage, listOwnedStickers, listPageNumbers, putPage, type OwnedSticker } from '../api/binder.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
+import Avatar from '../components/Avatar.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
+import PageHeader from '../components/PageHeader.tsx'
 import type { Placement } from '../lexicon-types.ts'
 
 const SAVE_DELAY_MS = 1000
-const THUMB_SIZE = 64
+const THUMB_SIZE = 48
 
 type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
@@ -201,53 +203,68 @@ export default function Binder() {
 
   return (
     <>
-      <h1>シール帳</h1>
+      <PageHeader title="ビン" />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <button type="button" onClick={() => goTo(pageIndex - 1)} disabled={!pages || pageIndex === 0}>
-          ← 前
+      <div className="binder-toolbar">
+        <small role="status" className="text-muted">
+          {SAVE_LABEL[saveState]}
+        </small>
+        <button type="button" className="round-button" onClick={() => goTo(pageIndex - 1)} disabled={!pages || pageIndex === 0} aria-label="前のページ">
+          ←
         </button>
-        <span>{pages ? `${pageIndex + 1} / ${pages.length}` : '…'}</span>
-        <button type="button" onClick={() => goTo(pageIndex + 1)} disabled={!pages || pageIndex >= pages.length - 1}>
-          次 →
+        <span className="binder-page-number">{pages ? `${pageIndex + 1} / ${pages.length}` : '…'}</span>
+        <button
+          type="button"
+          className="round-button"
+          onClick={() => goTo(pageIndex + 1)}
+          disabled={!pages || pageIndex >= pages.length - 1}
+          aria-label="次のページ"
+        >
+          →
         </button>
-        <button type="button" onClick={addPage} disabled={!pages}>
-          ページを足す
+        <button type="button" className="round-button round-button-plus" onClick={addPage} disabled={!pages} aria-label="ページを足す">
+          +
         </button>
-        <small role="status">{SAVE_LABEL[saveState]}</small>
       </div>
 
       {pageError && <p role="alert">{pageError}</p>}
       {canvasItems ? (
-        <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} />
+        <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} jar />
       ) : (
-        !pageError && <p>読み込み中…</p>
+        !pageError && <p className="text-muted">読み込み中…</p>
       )}
 
-      <div style={{ position: 'sticky', bottom: 0, background: '#fff', paddingTop: 8 }}>
+      <div className="binder-dock">
         {selectedId && items?.some((item) => item.id === selectedId) && (
-          <button type="button" onClick={peel} style={{ width: '100%' }}>
+          <button type="button" className="btn btn-block" onClick={peel}>
             はがす
           </button>
         )}
-        <h2 style={{ fontSize: 14, margin: '8px 0' }}>手持ち（タップでページの中央に貼る）</h2>
+        <div className="binder-hand-header">
+          <h2 className="section-title">手持ちのステッカー</h2>
+          {owned && owned.length > 0 && <span className="binder-hand-hint">{owned.length}枚・タップして貼る</span>}
+        </div>
         {ownedError && <p role="alert">手持ちを読めませんでした：{ownedError}</p>}
-        {!owned && !ownedError && <p>読み込み中…</p>}
-        {owned?.length === 0 && <p>まだステッカーがありません</p>}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
+        {!owned && !ownedError && <p className="text-muted">読み込み中…</p>}
+        {owned?.length === 0 && <p className="text-muted">まだステッカーがありません</p>}
+        <div className="binder-hand">
           {owned?.map((sticker) => (
-            <button
-              key={sticker.ref.uri}
-              type="button"
-              onClick={() => paste(sticker)}
-              disabled={!items}
-              style={{ flex: '0 0 auto', padding: 4, background: 'none', border: '1px solid #ddd', borderRadius: 8 }}
-            >
-              <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ステッカー'} width={THUMB_SIZE} height={THUMB_SIZE} style={{ objectFit: 'contain' }} />
+            <button key={sticker.ref.uri} type="button" className="binder-hand-item" onClick={() => paste(sticker)} disabled={!items}>
+              <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ステッカー'} width={THUMB_SIZE} height={THUMB_SIZE} />
+              {/* 交換でもらったものには、くれた人のアイコンを付ける */}
+              {sticker.owner !== did && (
+                <span className="binder-hand-owner">
+                  <Avatar did={sticker.owner} />
+                </span>
+              )}
             </button>
           ))}
         </div>
       </div>
+
+      <Link to="/exchange" className="btn btn-primary btn-block binder-exchange">
+        ⇔交換する
+      </Link>
     </>
   )
 }
