@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import cutout as cutout_service
 from .auth import require_did
+from .exchange import router as exchange_router
 from .config import ALLOWED_ORIGINS, BACKEND_DID
 from .schemas import CutoutResponse
 
@@ -27,6 +28,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(exchange_router)
 
 
 @app.get("/health")
