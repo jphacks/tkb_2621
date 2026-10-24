@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 const tabs = [
   { to: '/', label: 'タイムライン', icon: 'timeline', end: true },
   { to: '/capture', label: '撮影', icon: 'capture', end: false },
-  { to: '/binder', label: 'シール帳', icon: 'binder', end: false },
+  { to: '/binder', label: 'ビン', icon: 'binder', end: false },
   { to: '/fields', label: '共同フィールド', icon: 'fields', end: false },
 ]
 

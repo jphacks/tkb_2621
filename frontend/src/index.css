@@ -29,6 +29,12 @@
   --color-tag-field: #53ba6b;
   --color-tag-friend: #ec96ff;
   --color-tag-illustration: #95a0d7;
+  --color-viewer: #343434;
+  --color-viewer-frame: #f1f1f1;
+  --color-jar-from: rgba(108, 170, 75, 0.24);
+  --color-jar-to: rgba(69, 107, 59, 0.24);
+  --color-round-border: #959595;
+  --color-scan-border: #c2c2c2;
   --color-tag-place: #9bd676;
   --color-tag-text: #f6f5f0;
 
@@ -595,6 +601,445 @@ body {
 .segmented > .active {
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+/* 見た目は消して、読み上げとキーボードには残す */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+label:focus-within:has(> .visually-hidden) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.btn.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.tag-field {
+  background: var(--color-tag-field);
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* ステッカー作成 */
+.capture-modes {
+  margin-bottom: var(--space-3);
+}
+
+.capture-viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  min-height: 342px;
+  padding: var(--space-5) var(--space-4);
+  border-radius: var(--radius-button);
+  background: var(--color-viewer);
+  color: var(--color-surface);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.capture-viewer p {
+  margin: 0;
+}
+
+.capture-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 178px;
+  height: 180px;
+  border: 1px dashed var(--color-viewer-frame);
+  border-radius: var(--radius-button);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.capture-shutter {
+  display: block;
+  width: 63px;
+  margin: var(--space-4) auto 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.capture-files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.capture-files .card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.capture-files .section-title {
+  margin: 0;
+}
+
+.back-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 var(--space-4);
+}
+
+.back-header h1 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+/* 透過がわかるように市松模様に載せる */
+.capture-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 195px;
+  padding: var(--space-3);
+  border-radius: var(--radius-button);
+  background: repeating-conic-gradient(#e9e9e9 0 25%, #fff 0 50%) 0 0 / 24px 24px;
+}
+
+.capture-image img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.capture-tags {
+  display: flex;
+  gap: 6px;
+  margin: var(--space-3) 0;
+}
+
+.capture-caption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.capture-caption .input {
+  font-weight: var(--font-weight-bold);
+}
+
+.capture-count {
+  margin: var(--space-1) 0 var(--space-4);
+  text-align: right;
+  color: var(--color-text-faint);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.capture-count.over {
+  color: #c62828;
+}
+
+.capture-notice {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: var(--space-2) var(--space-3);
+}
+
+.capture-notice p {
+  margin: 0;
+}
+
+.capture-notice .notice-title {
+  margin-bottom: 2px;
+}
+
+.capture-confirm {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+}
+
+.capture-files .capture-confirm {
+  margin-top: 0;
+}
+
+.capture-confirm input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+.capture-save {
+  margin-top: var(--space-5);
+}
+
+.round-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--color-round-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.round-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.round-button-plus {
+  font-size: 24px;
+  font-weight: var(--font-weight-light);
+}
+
+/* ビン（シール帳） */
+.binder-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.binder-toolbar [role='status'] {
+  margin-right: auto;
+}
+
+.binder-page-number {
+  min-width: 36px;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.27em;
+}
+
+/* 漬け液のような薄い緑。キャンバスは透明にして、この背景と泡を透かす */
+.binder-jar {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-button);
+  background: linear-gradient(to bottom, var(--color-jar-from), var(--color-jar-to));
+}
+
+.binder-jar .konvajs-content {
+  position: relative;
+}
+
+.binder-bubbles img {
+  position: absolute;
+  animation: bubble-float 5s ease-in-out infinite alternate;
+}
+
+.binder-bubbles img:nth-child(2n) {
+  animation-duration: 3.5s;
+}
+
+@keyframes bubble-float {
+  to {
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .binder-bubbles img {
+    animation: none;
+  }
+}
+
+.binder-dock {
+  position: sticky;
+  bottom: 0;
+  padding-top: var(--space-3);
+  background: var(--color-bg);
+}
+
+.binder-dock > .btn {
+  margin-bottom: var(--space-3);
+}
+
+.binder-hand-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.binder-hand-hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.binder-hand {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding: var(--space-2) 0 var(--space-3);
+}
+
+.binder-hand-item {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 59px;
+  height: 60px;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-button);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.binder-hand-item img {
+  object-fit: contain;
+}
+
+/* 右上に少しはみ出させる。.binder-hand の上の余白に収まる分だけにして、横スクロールで切れないようにする */
+.binder-hand-owner {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: flex;
+}
+
+.binder-exchange {
+  margin-top: var(--space-4);
+  text-decoration: none;
+}
+
+/* 残り時間などの横棒 */
+.progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-button);
+  background: var(--color-surface-muted);
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+  transition: width 1s linear;
+}
+
+/* 左右に線を引いた「または」 */
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.or-divider::before,
+.or-divider::after {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+  content: '';
+}
+
+/* 対面で交換 */
+.exchange-occasion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.exchange-occasion-help {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: var(--space-1) 0 var(--space-4);
+  color: var(--color-text-faint);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.exchange-occasion-help .capture-count {
+  margin: 0;
+}
+
+.exchange-qr {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  border-radius: var(--radius-button);
+  text-align: center;
+}
+
+.exchange-qr p {
+  margin: 0;
+}
+
+.exchange-qr > p:first-child {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.exchange-qr-image {
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+  image-rendering: pixelated;
+}
+
+.exchange-status {
+  margin: var(--space-2) 0 0;
+  text-align: center;
+}
+
+.exchange-scan {
+  border-color: var(--color-scan-border);
+  font-size: var(--font-size-base);
+}
+
+.exchange-scan-hint {
+  margin-bottom: var(--space-3);
+}
+
+.exchange-scan-hint p {
+  margin: 0;
 }
 
 .logo {

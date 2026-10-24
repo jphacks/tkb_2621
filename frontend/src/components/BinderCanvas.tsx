@@ -84,6 +84,26 @@ interface Pinch {
   rotation: number
 }
 
+/** ぷかぷかの揺れ幅（画面上の px） */
+const FLOAT_PX = 4
+const FLOAT_SWAY_PX = 1.5
+
+/** 1枚ずつ揺れの速さと始まりをずらすための値。同じ id ならいつも同じ */
+function floatSeed(id: string): number {
+  let sum = 0
+  for (const c of id) sum = (sum * 31 + c.charCodeAt(0)) % 997
+  return sum
+}
+
+/** ビンの泡。位置は Figma の配置をビンの幅・高さに対する割合にしたもの */
+const BUBBLES = [
+  { src: '/images/bubble-1.svg', left: '89%', top: '3%' },
+  { src: '/images/bubble-2.svg', left: '94%', top: '11%' },
+  { src: '/images/bubble-3.svg', left: '5%', top: '67%' },
+  { src: '/images/bubble-4.svg', left: '11%', top: '74%' },
+  { src: '/images/bubble-5.svg', left: '5%', top: '86%' },
+]
+
 function touchGeometry(touches: TouchList) {
   const [a, b] = [touches[0], touches[1]]
   const dx = b.clientX - a.clientX
@@ -103,13 +123,49 @@ export default function BinderCanvas(props: {
   onChange: (id: string, placement: Placement) => void
   /** locked のステッカーをタップしたとき */
   onTapLocked?: (id: string) => void
+  /** true ならビン（シール帳）の見た目にして、ステッカーをぷかぷか揺らす */
+  jar?: boolean
 }) {
-  const { items, selectedId, onSelect, onFront, onChange, onTapLocked } = props
+  const { items, selectedId, onSelect, onFront, onChange, onTapLocked, jar } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const [pageWidth, setPageWidth] = useState(0)
   const nodes = useRef(new Map<string, Konva.Image>())
   const transformerRef = useRef<Konva.Transformer>(null)
   const pinch = useRef<Pinch | undefined>(undefined)
+  const selectedRef = useRef(selectedId)
+
+  useEffect(() => {
+    selectedRef.current = selectedId
+  })
+
+  // ビンでは、ステッカーを液体に浮いているように揺らす。中心（offset）だけを動かすので、保存する x・y・拡大・回転には入らない。
+  // 選んでいるもの・ドラッグ中のもの・2本指で操作中のものは揺らさない。
+  // react-konva は Stage の中身を後から描くので、Layer はこの effect の時点ではまだ無い。毎フレーム、ステッカーから Layer を引いて描き直す
+  useEffect(() => {
+    const map = nodes.current
+    if (!jar || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const animation = new Konva.Animation((frame) => {
+      if (!frame) return
+      const t = frame.time / 1000
+      let layer: Konva.Layer | null = null
+      for (const [id, node] of map) {
+        const still = id === selectedRef.current || node.isDragging()
+        const seed = floatSeed(id)
+        const speed = 1.1 + (seed % 5) * 0.15
+        const scale = node.scaleX() || 1
+        const dy = still ? 0 : (Math.sin(t * speed + seed) * FLOAT_PX) / scale
+        const dx = still ? 0 : (Math.sin(t * speed * 0.6 + seed) * FLOAT_SWAY_PX) / scale
+        node.offset({ x: node.width() / 2 - dx, y: node.height() / 2 - dy })
+        layer ??= node.getLayer()
+      }
+      layer?.batchDraw()
+    })
+    animation.start()
+    return () => {
+      animation.stop()
+      for (const node of map.values()) node.offset({ x: node.width() / 2, y: node.height() / 2 })
+    }
+  }, [jar])
 
   // 画面幅に合わせる
   useEffect(() => {
@@ -177,7 +233,14 @@ export default function BinderCanvas(props: {
   const sorted = [...items].sort((a, b) => a.placement.z - b.placement.z)
 
   return (
-    <div ref={containerRef} style={{ width: '100%' }}>
+    <div ref={containerRef} className={jar ? 'binder-jar' : undefined} style={jar ? undefined : { width: '100%' }}>
+      {jar && (
+        <div className="binder-bubbles" aria-hidden="true">
+          {BUBBLES.map((b) => (
+            <img key={b.src} src={b.src} alt="" style={{ left: b.left, top: b.top }} />
+          ))}
+        </div>
+      )}
       {pageWidth > 0 && (
         <Stage
           width={pageWidth}
@@ -188,7 +251,7 @@ export default function BinderCanvas(props: {
           onTouchStart={(e) => e.evt.touches.length === 1 && e.target === e.target.getStage() && onSelect(undefined)}
         >
           <Layer>
-            <Rect width={pageWidth} height={pageHeight} fill="#fffdf6" stroke="#ccc" listening={false} />
+            {!jar && <Rect width={pageWidth} height={pageHeight} fill="#fffdf6" stroke="#ccc" listening={false} />}
             {sorted.map((item) => (
               <StickerNode
                 key={item.id}
