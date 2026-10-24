@@ -164,6 +164,15 @@ Lexiconの定義ファイル（JSON）は `lexicons/`、TypeScriptの型は `fro
 
 間に合えば：収集プロセスがJetstreamに接続し、`wantedCollections` を自分たちのコレクションに絞ってPostgresに保存する。cursorも保存し、再起動時はそこから再開する。`app.bsky.graph.block` は全ユーザー分が流れて重いので購読しない
 
+### 共同フィールドのリアルタイム反映（2026-10-24追加）
+
+開いている共同フィールド（S8）に、ほかのメンバーの貼り付け・移動・削除を、リロードしなくても反映する。
+
+1. ブラウザが公開のJetstream（`wss://jetstream2.us-east.bsky.network/subscribe` など。つながらなければ別のホスト）に直接つなぎ、`wantedCollections=com.kosora623.pikkles.field.placement` で購読する。サーバーを通さないので、Renderが寝ていても動く
+2. 受け取った `field.placement` のうち、開いているフィールドを指し、メンバーが自分のステッカーを貼ったものだけを反映する（PDSから読むときと同じ条件）。知らない人のものが来たら、メンバー一覧を読み直す（新しく参加した人の場合）
+3. 他人の移動が見えるのは、その人が手を離して保存したあと（S8は動かし終わって1秒後に保存する）。ドラッグ中の動きは配らない
+4. Jetstreamの中身は署名を確かめていないので、PDSを正とする。30秒ごと、Jetstreamをつなぎ直したとき、画面に戻ったときに、メンバー全員のPDSから読み直して正す。自分の貼り付けは画面の状態を正とし、保存待ちの動きを消さない
+
 ## 8. バックエンドAPI（下書き）
 
 | メソッド | パス | 用途 | 入力 | 出力 |
@@ -206,6 +215,7 @@ WebSocketメッセージ（案）
 | バックエンド | Python（FastAPI）、rembg（軽量モデル）、OpenCV、WebSocket | Render（無料） |
 | DB | Render Postgres（無料） | Render |
 | タイムライン | 相手のPDSを直接読む（Jetstreamの収集は間に合えば） | Render |
+| 共同フィールドのリアルタイム反映 | ブラウザから公開のJetstreamを購読（7章） | ― |
 
 Hack Dayのデプロイ先はRender（無料、カード不要）。そのため次のように運用する。
 
