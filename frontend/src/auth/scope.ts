@@ -11,12 +11,14 @@ export const SERVICE_AUTH_LXM = 'com.kosora623.pikkles.api'
 /**
  * 必要な分だけの細かい scope。
  * - repo: は「com.kosora623.pikkles.*」のようなワイルドカードを書けないので、コレクションを1つずつ並べる
+ * - app.bsky.graph.follow は交換成立後の「Blueskyでもフォローする」（spec 3章 #13）
  * - blob:image/* は画像のアップロード
  * - rpc: の aud を * にしておくと、バックエンドの DID を client-metadata.json に書かずに済む
  */
 export const GRANULAR_SCOPE = [
   'atproto',
   ...Object.values(NSID).map((collection) => `repo:${collection}`),
+  'repo:app.bsky.graph.follow',
   'blob:image/*',
   `rpc:${SERVICE_AUTH_LXM}?aud=*`,
 ].join(' ')
