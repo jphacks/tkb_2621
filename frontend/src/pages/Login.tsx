@@ -26,10 +26,7 @@ export default function Login() {
     )
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    const input = handle.trim().replace(/^@/, '')
-    if (!input) return
+  async function signIn(input: string) {
     setSubmitting(true)
     setError(undefined)
     try {
@@ -40,23 +37,41 @@ export default function Login() {
     }
   }
 
+  function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    const input = handle.trim().replace(/^@/, '')
+    if (!input) return
+    void signIn(input)
+  }
+
   return (
     <>
       <h1>Pikkles</h1>
-      <form onSubmit={onSubmit}>
-        <input
-          type="text"
-          value={handle}
-          onChange={(e) => setHandle(e.target.value)}
-          placeholder="example.bsky.social"
-          autoCapitalize="none"
-          autoCorrect="off"
-          autoComplete="username"
-        />
-        <button type="submit" disabled={submitting}>
-          Blueskyでログイン
-        </button>
-      </form>
+      <button
+        type="button"
+        className="login-primary"
+        disabled={submitting}
+        onClick={() => void signIn('https://bsky.social')}
+      >
+        Blueskyでログイン
+      </button>
+      <details className="login-other">
+        <summary>ほかのサーバーのアカウント</summary>
+        <form onSubmit={onSubmit}>
+          <input
+            type="text"
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
+            placeholder="example.bsky.social"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="username"
+          />
+          <button type="submit" disabled={submitting}>
+            ハンドルでログイン
+          </button>
+        </form>
+      </details>
       {(error ?? auth.error) && <p role="alert">{error ?? auth.error}</p>}
     </>
   )
