@@ -45,6 +45,10 @@ class CreateSessionResponse(BaseModel):
 
 # ---- POST /exchange/sessions/{id}/join ----
 
+class JoinRequest(BaseModel):
+    t: str  # joinUrl の合言葉（60秒で失効）
+
+
 SessionStatus = Literal["waiting", "selecting", "confirmed", "completed", "cancelled"]
 
 
