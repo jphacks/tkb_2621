@@ -1,0 +1,49 @@
+{
+  "lexicon": 1,
+  "id": "com.kosora623.pikkles.field.placement",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "共同フィールドへの貼り付け。貼った人のPDSに置く。貼れるのは自分のステッカーのみ。数値の単位は binder.page#placement と同じ。",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["field", "sticker", "x", "y", "scale", "rotation", "z", "createdAt"],
+        "properties": {
+          "field": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "sticker": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "自分のステッカーのみ"
+          },
+          "x": {
+            "type": "integer",
+            "description": "ステッカー中心の横位置。キャンバス幅を10000とした値。-2000〜12000",
+            "minimum": -2000,
+            "maximum": 12000
+          },
+          "y": {
+            "type": "integer",
+            "description": "ステッカー中心の縦位置。キャンバス高さを10000とした値。-2000〜12000",
+            "minimum": -2000,
+            "maximum": 12000
+          },
+          "scale": {
+            "type": "integer",
+            "description": "拡大率。1000で等倍（100 = 0.1倍、5000 = 5倍）",
+            "minimum": 100,
+            "maximum": 5000
+          },
+          "rotation": {
+            "type": "integer",
+            "description": "回転（度、時計回り）",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "z": { "type": "integer", "description": "重なり順。大きいほど上", "minimum": 0 },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

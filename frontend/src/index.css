@@ -1,0 +1,52 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Hiragino Sans', sans-serif;
+  background: #f4f4f4;
+  color: #222;
+}
+
+/* スマホ縦向きの1カラム。PC で開いても中央に縦長で出す */
+.app {
+  max-width: 480px;
+  height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.page {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.tabbar {
+  display: flex;
+  border-top: 1px solid #ddd;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 4px;
+  text-align: center;
+  font-size: 12px;
+  color: #888;
+  text-decoration: none;
+}
+
+.tab.active {
+  color: #222;
+  font-weight: bold;
+}

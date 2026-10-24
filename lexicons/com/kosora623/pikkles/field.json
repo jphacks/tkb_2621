@@ -1,0 +1,19 @@
+{
+  "lexicon": 1,
+  "id": "com.kosora623.pikkles.field",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "共同フィールド。作った人のPDSに置く。",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["title", "createdAt"],
+        "properties": {
+          "title": { "type": "string", "maxGraphemes": 50, "maxLength": 500 },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

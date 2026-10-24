@@ -1,0 +1,36 @@
+{
+  "lexicon": 1,
+  "id": "com.kosora623.pikkles.exchange",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "交換の記録。交換した2人がそれぞれ自分のPDSに書く。",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["sessionId", "partner", "gave", "received", "createdAt"],
+        "properties": {
+          "sessionId": { "type": "string", "maxLength": 128 },
+          "occasion": {
+            "type": "string",
+            "description": "交換した場面（任意、手入力。位置情報ではない）。サーバーが持つセッションの値をそのまま入れる",
+            "maxGraphemes": 50,
+            "maxLength": 500
+          },
+          "partner": { "type": "string", "format": "did", "description": "交換相手のDID" },
+          "gave": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "自分が渡したステッカー"
+          },
+          "received": {
+            "type": "ref",
+            "ref": "com.atproto.repo.strongRef",
+            "description": "受け取ったステッカー"
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

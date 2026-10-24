@@ -1,0 +1,41 @@
+{
+  "lexicon": 1,
+  "id": "com.kosora623.pikkles.sticker",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "ステッカー本体。切り抜き済みの透過PNG。",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["image", "width", "height", "source", "createdAt"],
+        "properties": {
+          "image": {
+            "type": "blob",
+            "description": "切り抜き済み透過PNG。EXIF などのメタデータを残さず再エンコードする。1MB に収めるため /cutout で長辺を1024pxに縮めてある前提。",
+            "accept": ["image/png"],
+            "maxSize": 1000000
+          },
+          "width": { "type": "integer", "minimum": 1, "description": "画像の幅（px）" },
+          "height": { "type": "integer", "minimum": 1, "description": "画像の高さ（px）" },
+          "source": {
+            "type": "string",
+            "description": "撮った写真か、描いたイラストか",
+            "knownValues": ["photo", "illustration"]
+          },
+          "caption": {
+            "type": "string",
+            "description": "一言（任意）",
+            "maxGraphemes": 100,
+            "maxLength": 1000
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime",
+            "description": "撮影日時（イラストは保存日時）"
+          }
+        }
+      }
+    }
+  }
+}

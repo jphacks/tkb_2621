@@ -1,0 +1,19 @@
+{
+  "lexicon": 1,
+  "id": "com.kosora623.pikkles.want",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "「ほしい」。付けたステッカーが、その人との交換時に候補の先頭に出る。",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["subject", "createdAt"],
+        "properties": {
+          "subject": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
