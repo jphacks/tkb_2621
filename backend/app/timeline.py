@@ -1,4 +1,7 @@
-"""タイムライン（spec 7章）。DB は使わず、相手の PDS を直接読む（Render は寝るとメモリが消えるため）。"""
+"""タイムライン（spec 7章）。相手の PDS を直接読む。
+
+交換の相手は PDS から集める（Render は寝るとメモリが消えるため）。共同フィールドのメンバーは fields.py の DB から。
+"""
 
 import asyncio
 import logging
@@ -7,7 +10,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from . import pds
+from . import fields, pds
 from .auth import require_did
 from .exchange import EXCHANGE_COLLECTION, STICKER_COLLECTION
 from .schemas import TimelineItem, TimelineResponse
@@ -78,11 +81,13 @@ async def _exchange_partners(did: str) -> set[str]:
 
 
 async def collect_partners(did: str) -> set[str]:
-    """タイムラインに出す相手。ブロック関係にある相手は外す。
-
-    共同フィールドのメンバーはここに足す。
-    """
+    """タイムラインに出す相手（成立した交換の相手と、同じ共同フィールドのメンバー）。ブロック関係にある相手は外す。"""
     candidates = await _exchange_partners(did)
+    try:
+        candidates |= await fields.co_members(did)
+    except fields.StoreUnavailable:
+        # DB が落ちていても、交換の相手だけで返す
+        logger.exception("timeline: field members failed")
 
     async def not_blocked(partner: str) -> bool:
         try:

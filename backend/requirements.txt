@@ -1,6 +1,7 @@
 fastapi==0.162.0
 uvicorn[standard]==0.54.0
 atproto==0.0.73
+asyncpg==0.32.0
 rembg==2.0.69
 opencv-python-headless==5.0.0.93
 numpy==2.5.4

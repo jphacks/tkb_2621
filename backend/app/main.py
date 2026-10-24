@@ -6,6 +6,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, sta
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import cutout as cutout_service
+from . import fields
 from .auth import require_did
 from .exchange import router as exchange_router
 from .config import ALLOWED_ORIGINS, BACKEND_DID
@@ -19,7 +20,9 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     cutout_service.init_session()
+    await fields.store.init()
     yield
+    await fields.store.close()
 
 
 app = FastAPI(title="Pikkles API", lifespan=lifespan)
@@ -34,6 +37,7 @@ app.add_middleware(
 
 app.include_router(exchange_router)
 app.include_router(timeline_router)
+app.include_router(fields.router)
 
 
 @app.get("/health")
