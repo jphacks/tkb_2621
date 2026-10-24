@@ -2,7 +2,7 @@
 import type { Agent } from '@atproto/api'
 import { useSyncExternalStore } from 'react'
 import { SERVICE_AUTH_LXM } from '../auth/scope.ts'
-import type { Did, StrongRef } from '../lexicon-types.ts'
+import type { Did, StrongRef, Sticker } from '../lexicon-types.ts'
 
 // ---- schemas.py と同じ形 ----
 
@@ -18,6 +18,13 @@ export interface SessionState {
   sessionId: string
   occasion: string | null
   status: SessionStatus
+}
+
+export interface CutoutResponse {
+  /** base64 の透過PNG */
+  image: string
+  width: number
+  height: number
 }
 
 export interface CommitResponse {
@@ -85,6 +92,7 @@ export function useBackendWaking(): boolean {
   return useSyncExternalStore(subscribe, () => slowCount > 0)
 }
 
+/** body が FormData なら multipart で、それ以外は JSON で送る */
 async function backendFetch<T>(agent: Agent, path: string, init: { method: 'GET' | 'POST'; body?: unknown }): Promise<T> {
   const token = await getToken(agent)
   let slow = false
@@ -93,13 +101,16 @@ async function backendFetch<T>(agent: Agent, path: string, init: { method: 'GET'
     addSlow(1)
   }, SLOW_MS)
   try {
+    const isForm = init.body instanceof FormData
+    const isJson = init.body !== undefined && !isForm
     const res = await fetch(`${env('VITE_BACKEND_URL')}${path}`, {
       method: init.method,
       headers: {
         Authorization: `Bearer ${token}`,
-        ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        // multipart の Content-Type（boundary 付き）はブラウザに付けさせる
+        ...(isJson ? { 'Content-Type': 'application/json' } : {}),
       },
-      body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      body: isForm ? (init.body as FormData) : isJson ? JSON.stringify(init.body) : undefined,
     })
     const data: unknown = await res.json().catch(() => undefined)
     if (!res.ok) {
@@ -112,6 +123,14 @@ async function backendFetch<T>(agent: Agent, path: string, init: { method: 'GET'
     clearTimeout(timer)
     if (slow) addSlow(-1)
   }
+}
+
+/** 背景を消して透過PNGにする。画像はサーバーで再エンコードされ、EXIF などは残らない */
+export function cutout(agent: Agent, file: File, source: Sticker['source']): Promise<CutoutResponse> {
+  const form = new FormData()
+  form.append('image', file)
+  form.append('source', source)
+  return backendFetch(agent, '/cutout', { method: 'POST', body: form })
 }
 
 export function createSession(agent: Agent, occasion: string | null): Promise<CreateSessionResponse> {
