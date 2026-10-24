@@ -1,6 +1,7 @@
 // PDS の読み書きと getServiceAuth を確かめるための仮の画面。骨組みが通ったらルートごと消す。
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import { deleteSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import { SERVICE_AUTH_LXM } from '../auth/scope.ts'
 import { NSID, type BlobRef, type Sticker } from '../lexicon-types.ts'
@@ -47,6 +48,8 @@ export default function Debug() {
   const auth = useAuth()
   const [create, setCreate] = useState<Result>()
   const [list, setList] = useState<Result>()
+  const [items, setItems] = useState<{ uri: string; value: Sticker }[]>([])
+  const [deleting, setDeleting] = useState<string>()
   const [serviceAuth, setServiceAuth] = useState<Result>()
 
   if (auth.status === 'loading') return <p>読み込み中…</p>
@@ -80,15 +83,27 @@ export default function Debug() {
 
   async function listStickers() {
     setList(undefined)
+    setItems([])
     try {
       const { data } = await agent.com.atproto.repo.listRecords({ repo: did, collection: NSID.sticker, limit: 50 })
-      const lines = data.records.map((r) => {
-        const value = r.value as unknown as Sticker
-        return `${r.uri}\n  ${value.source} ${value.width}x${value.height} ${value.createdAt}`
-      })
-      setList({ ok: true, text: `${data.records.length} 件\n${lines.join('\n')}` })
+      setItems(data.records.map((r) => ({ uri: r.uri, value: r.value as unknown as Sticker })))
+      setList({ ok: true, text: `${data.records.length} 件` })
     } catch (e) {
       setList({ ok: false, text: errorMessage(e) })
+    }
+  }
+
+  async function removeSticker(uri: string) {
+    if (!window.confirm('このステッカーを削除しますか？')) return
+    setDeleting(uri)
+    try {
+      await deleteSticker(agent, did, uri)
+      setItems((prev) => prev.filter((item) => item.uri !== uri))
+      setList({ ok: true, text: `削除しました：${uri}` })
+    } catch (e) {
+      setList({ ok: false, text: errorMessage(e) })
+    } finally {
+      setDeleting(undefined)
     }
   }
 
@@ -124,6 +139,18 @@ export default function Debug() {
         listRecords
       </button>
       <ResultView result={list} />
+      <ul>
+        {items.map(({ uri, value }) => (
+          <li key={uri} style={{ wordBreak: 'break-all' }}>
+            {uri}
+            <br />
+            {value.source} {value.width}x{value.height} {value.createdAt} {value.caption}{' '}
+            <button type="button" onClick={() => removeSticker(uri)} disabled={deleting === uri}>
+              {deleting === uri ? '削除しています…' : '削除'}
+            </button>
+          </li>
+        ))}
+      </ul>
 
       <h2>3. getServiceAuth</h2>
       <button type="button" onClick={getServiceAuth}>
