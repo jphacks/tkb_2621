@@ -1,8 +1,9 @@
 // S7 共同フィールド一覧。自分の PDS の field.member から参加中のものを並べ、新しく作れる。
+// 削除されたものは「削除済み」と出す。開いたとき、自分が作って閉じた field の後始末もする。
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { joinField } from '../api/backend.ts'
-import { FIELD_TITLE_MAX, createField, fieldPath, listJoinedFields, type FieldView } from '../api/field.ts'
+import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, fieldPath, listJoinedFields, type JoinedField } from '../api/field.ts'
 import { countGraphemes } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
@@ -17,7 +18,7 @@ export default function FieldList() {
   const agent = auth.status === 'signedIn' ? auth.agent : undefined
   const did = auth.status === 'signedIn' ? auth.did : undefined
 
-  const [fields, setFields] = useState<FieldView[]>()
+  const [fields, setFields] = useState<JoinedField[]>()
   const [listError, setListError] = useState<string>()
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
@@ -26,6 +27,8 @@ export default function FieldList() {
   useEffect(() => {
     if (!agent || !did) return
     let cancelled = false
+    // 作った人が先に抜けていて閉じた field を消す。失敗しても一覧は出す
+    void cleanupClosedOwnFields(agent, did).catch(() => undefined)
     listJoinedFields(agent, did)
       .then((list) => !cancelled && setFields(list))
       .catch((e: unknown) => !cancelled && setListError(errorMessage(e)))
@@ -81,9 +84,10 @@ export default function FieldList() {
       {!fields && !listError && <p>読み込み中…</p>}
       {fields?.length === 0 && <p>まだ参加していません。作るか、招待 QR を iPhone のカメラで読んでください</p>}
       <ul>
-        {fields?.map((field) => (
-          <li key={field.ref.uri}>
-            <Link to={fieldPath(field.ref)}>{field.title}</Link>
+        {fields?.map((joined) => (
+          <li key={joined.uri}>
+            <Link to={fieldPath({ uri: joined.uri })}>{joined.field?.title ?? '削除されたフィールド'}</Link>
+            {joined.deleted && <small>（削除済み）</small>}
           </li>
         ))}
       </ul>

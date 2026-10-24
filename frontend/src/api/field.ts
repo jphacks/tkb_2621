@@ -1,7 +1,8 @@
 // 共同フィールドの読み書き。field（作った人の PDS）、field.member と field.placement（各自の PDS）。
 import { AtUri, type Agent } from '@atproto/api'
 import { NSID, type Did, type Field, type FieldMember, type FieldPlacement, type Placement, type StrongRef } from '../lexicon-types.ts'
-import { listOwnRecords, listPublicRecords } from './binder.ts'
+import { deleteFieldOnServer, getFieldMembers, leaveFieldOnServer, type FieldMembersResponse } from './backend.ts'
+import { isRecordNotFound, listOwnRecords, listPublicRecords } from './binder.ts'
 import { getSticker, resolveDid, stickerImageUrl } from './sticker.ts'
 
 /** タイトルの上限（書記素の数） */
@@ -13,6 +14,14 @@ export interface FieldView {
   title: string
 }
 
+/** 共同フィールドが削除された（PDS が RecordNotFound を返した）。一時的に読めないだけのときは普通の Error */
+export class FieldDeletedError extends Error {
+  constructor() {
+    super('このフィールドは削除されました')
+    this.name = 'FieldDeletedError'
+  }
+}
+
 /** 共同フィールドを作った人の PDS から読む（ログイン不要の公開 API） */
 export async function getField(uri: string): Promise<FieldView> {
   const at = new AtUri(uri)
@@ -20,12 +29,15 @@ export async function getField(uri: string): Promise<FieldView> {
   const { pds } = await resolveDid(at.host)
   const params = new URLSearchParams({ repo: at.host, collection: at.collection, rkey: at.rkey })
   const res = await fetch(`${pds}/xrpc/com.atproto.repo.getRecord?${params}`)
-  if (!res.ok) throw new Error(`共同フィールドが読めません（${res.status}）`)
+  if (!res.ok) {
+    if (await isRecordNotFound(res)) throw new FieldDeletedError()
+    throw new Error(`共同フィールドが読めません（${res.status}）`)
+  }
   const data = (await res.json()) as { uri: string; cid: string; value: Field }
   return { ref: { uri: data.uri, cid: data.cid }, creator: at.host, title: data.value.title }
 }
 
-export function fieldPath(field: StrongRef): string {
+export function fieldPath(field: Pick<StrongRef, 'uri'>): string {
   const at = new AtUri(field.uri)
   return `/fields/${encodeURIComponent(at.host)}/${encodeURIComponent(at.rkey)}`
 }
@@ -37,16 +49,33 @@ export function inviteUrl(field: StrongRef): string {
 
 // ---- 参加 ----
 
-/** 参加中の共同フィールド（新しく参加した順）。読めない（削除された）ものは出さない */
-export async function listJoinedFields(agent: Agent, did: Did): Promise<FieldView[]> {
+export type JoinedField = { uri: string; deleted: false; field: FieldView } | { uri: string; deleted: true; field?: FieldView }
+
+/**
+ * 参加中の共同フィールド（新しく参加した順）。
+ * 削除された（field が無い・サーバーで閉じた）ものは deleted: true で返す。一時的に読めないものは出さない
+ */
+export async function listJoinedFields(agent: Agent, did: Did): Promise<JoinedField[]> {
   const members = await listOwnRecords<FieldMember>(agent, did, NSID.fieldMember)
   const uris = [
     ...new Set(
       [...members].sort((a, b) => b.value.createdAt.localeCompare(a.value.createdAt)).map((m) => m.value.field.uri),
     ),
   ]
-  const fields = await Promise.all(uris.map((uri) => getField(uri).catch(() => undefined)))
-  return fields.filter((f): f is FieldView => f !== undefined)
+  const fields = await Promise.all(
+    uris.map(async (uri): Promise<JoinedField | undefined> => {
+      let field: FieldView
+      try {
+        field = await getField(uri)
+      } catch (e) {
+        return e instanceof FieldDeletedError ? { uri, deleted: true } : undefined
+      }
+      // サーバーが読めなければ、閉じていないものとして出す
+      const closed = await getFieldMembers(agent, uri).then((r) => r.closed, () => false)
+      return closed ? { uri, deleted: true, field } : { uri, deleted: false, field }
+    }),
+  )
+  return fields.filter((f): f is JoinedField => f !== undefined)
 }
 
 export async function isMember(agent: Agent, did: Did, fieldUri: string): Promise<boolean> {
@@ -190,4 +219,57 @@ export async function putFieldPlacement(
   if (at.host !== did || at.collection !== NSID.fieldPlacement) throw new Error('自分の貼り付けではありません')
   const record: FieldPlacement = { $type: NSID.fieldPlacement, field, ...placement, createdAt }
   await agent.com.atproto.repo.putRecord({ repo: did, collection: NSID.fieldPlacement, rkey: at.rkey, record: { ...record } })
+}
+
+/** 自分の field.placement を消す（はがす） */
+export async function deleteFieldPlacement(agent: Agent, did: Did, uri: string): Promise<void> {
+  const at = new AtUri(uri)
+  if (at.host !== did || at.collection !== NSID.fieldPlacement) throw new Error('自分の貼り付けではありません')
+  await agent.com.atproto.repo.deleteRecord({ repo: did, collection: NSID.fieldPlacement, rkey: at.rkey })
+}
+
+// ---- 抜ける・削除 ----
+
+async function deleteOwnRecord(agent: Agent, did: Did, uri: string): Promise<void> {
+  const at = new AtUri(uri)
+  if (at.host !== did) throw new Error('自分の記録ではありません')
+  await agent.com.atproto.repo.deleteRecord({ repo: did, collection: at.collection, rkey: at.rkey })
+}
+
+/** このフィールドを指す自分の field.placement、続けて field.member を消す（「一覧から外す」もこれだけ） */
+export async function removeOwnFieldRecords(agent: Agent, did: Did, fieldUri: string): Promise<void> {
+  const placements = await listOwnRecords<FieldPlacement>(agent, did, NSID.fieldPlacement)
+  await Promise.all(placements.filter((r) => r.value.field?.uri === fieldUri).map((r) => deleteOwnRecord(agent, did, r.uri)))
+  const members = await listOwnRecords<FieldMember>(agent, did, NSID.fieldMember)
+  await Promise.all(members.filter((r) => r.value.field?.uri === fieldUri).map((r) => deleteOwnRecord(agent, did, r.uri)))
+}
+
+/** 抜ける。残りが0人になり（closed）、自分が作った人なら field 本体も消す */
+export async function leaveField(agent: Agent, did: Did, field: FieldView): Promise<FieldMembersResponse> {
+  await removeOwnFieldRecords(agent, did, field.ref.uri)
+  const res = await leaveFieldOnServer(agent, field.ref.uri)
+  if (res.closed && field.creator === did) await deleteOwnRecord(agent, did, field.ref.uri)
+  return res
+}
+
+/** 削除する（作った人だけ）。サーバーで閉じられなければ field 本体は消さずに止める */
+export async function deleteField(agent: Agent, did: Did, field: FieldView): Promise<void> {
+  if (field.creator !== did) throw new Error('作った人だけが削除できます')
+  await removeOwnFieldRecords(agent, did, field.ref.uri)
+  await deleteFieldOnServer(agent, field.ref.uri)
+  await deleteOwnRecord(agent, did, field.ref.uri)
+}
+
+/** 自分が作った field のうち、サーバーで閉じているものを消す（作った人が先に抜けていた場合の後始末） */
+export async function cleanupClosedOwnFields(agent: Agent, did: Did): Promise<void> {
+  const fields = await listOwnRecords<Field>(agent, did, NSID.field)
+  await Promise.all(
+    fields.map(async (r) => {
+      try {
+        if ((await getFieldMembers(agent, r.uri)).closed) await deleteOwnRecord(agent, did, r.uri)
+      } catch {
+        // 読めなければ次に一覧を開いたときにやり直す
+      }
+    }),
+  )
 }

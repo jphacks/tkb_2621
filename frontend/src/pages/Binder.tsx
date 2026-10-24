@@ -1,7 +1,8 @@
 // S4 シール帳。手持ちのステッカーをページに貼り、動かし終わって1秒たったら binder.page に保存する。
+// 選んだものは「はがす」でページから外せる（ステッカー本体は消さない）。削除されたステッカーの配置は保存のときに落とす。
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { centerPlacement, getPage, listOwnedStickers, listPageNumbers, putPage, type OwnedSticker } from '../api/binder.ts'
+import { centerPlacement, findDeletedStickers, getPage, listOwnedStickers, listPageNumbers, putPage, type OwnedSticker } from '../api/binder.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import type { Placement } from '../lexicon-types.ts'
@@ -46,8 +47,12 @@ export default function Binder() {
   const [items, setItems] = useState<PageItem[]>()
   const [pageError, setPageError] = useState<string>()
   const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [selectedId, setSelectedId] = useState<string>()
 
   const page = pages?.[pageIndex]
+
+  // 削除された（RecordNotFound の）ステッカーの URI。その配置は保存のときに落とす
+  const deletedStickers = useRef(new Set<string>())
 
   // ---- 保存（最後に動かしてから1秒後。ページを替える・アプリを閉じるときはすぐ） ----
   const pending = useRef<{ page: number; placements: Placement[] } | undefined>(undefined)
@@ -70,7 +75,10 @@ export default function Binder() {
   }, [agent, did])
 
   function schedule(pageNumber: number, next: PageItem[]) {
-    pending.current = { page: pageNumber, placements: next.map((item) => item.placement) }
+    pending.current = {
+      page: pageNumber,
+      placements: next.map((item) => item.placement).filter((p) => !deletedStickers.current.has(p.sticker.uri)),
+    }
     clearTimeout(timer.current)
     timer.current = setTimeout(() => void flush(), SAVE_DELAY_MS)
     setSaveState('pending')
@@ -106,7 +114,12 @@ export default function Binder() {
     if (!agent || !did || page === undefined) return
     let cancelled = false
     getPage(agent, did, page)
-      .then((placements) => !cancelled && setItems(placements.map((placement) => ({ id: newId(), placement }))))
+      .then((placements) => {
+        if (cancelled) return
+        setItems(placements.map((placement) => ({ id: newId(), placement })))
+        // 表示とは別に、ステッカーが削除されたかを確かめておく（一時的に読めないだけのものは残す）
+        void findDeletedStickers(placements.map((p) => p.sticker)).then((uris) => uris.forEach((uri) => deletedStickers.current.add(uri)))
+      })
       .catch((e: unknown) => !cancelled && setPageError(errorMessage(e)))
     return () => {
       cancelled = true
@@ -144,8 +157,16 @@ export default function Binder() {
     update(items.map((item) => (item.id === id ? { ...item, placement } : item)))
   }
 
+  /** 選んでいるものをページから外す。ステッカー本体と手持ちの一覧はそのまま */
+  function peel() {
+    if (!items || !selectedId) return
+    update(items.filter((item) => item.id !== selectedId))
+    setSelectedId(undefined)
+  }
+
   function goTo(index: number) {
     void flush()
+    setSelectedId(undefined)
     setItems(undefined)
     setPageError(undefined)
     setPageIndex(index)
@@ -163,6 +184,7 @@ export default function Binder() {
       return
     }
     setPages([...pages, number])
+    setSelectedId(undefined)
     setItems(undefined)
     setPageIndex(pages.length)
   }
@@ -172,7 +194,7 @@ export default function Binder() {
     items && owned
       ? items.map(({ id, placement }) => {
           const sticker = byUri.get(placement.sticker.uri)
-          // 手持ちに無い（削除された・成立していない）ものは描かない。配置はそのまま残す
+          // 手持ちに無い（削除された・成立していない）ものは描かない。削除されたものの配置は保存のときに落とす
           return { id, placement, imageUrl: sticker?.imageUrl, width: sticker?.sticker.width ?? 1, height: sticker?.sticker.height ?? 1 }
         })
       : undefined
@@ -197,12 +219,17 @@ export default function Binder() {
 
       {pageError && <p role="alert">{pageError}</p>}
       {canvasItems ? (
-        <BinderCanvas items={canvasItems} onFront={bringToFront} onChange={move} />
+        <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} />
       ) : (
         !pageError && <p>読み込み中…</p>
       )}
 
       <div style={{ position: 'sticky', bottom: 0, background: '#fff', paddingTop: 8 }}>
+        {selectedId && items?.some((item) => item.id === selectedId) && (
+          <button type="button" onClick={peel} style={{ width: '100%' }}>
+            はがす
+          </button>
+        )}
         <h2 style={{ fontSize: 14, margin: '8px 0' }}>手持ち（タップでページの中央に貼る）</h2>
         {ownedError && <p role="alert">手持ちを読めませんでした：{ownedError}</p>}
         {!owned && !ownedError && <p>読み込み中…</p>}

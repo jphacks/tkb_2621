@@ -100,6 +100,34 @@ export async function listPublicRecords<T>(did: Did, collection: string): Promis
   return out
 }
 
+/** getRecord の失敗が「レコードが無い」（削除された）ものなら true。通信やサーバーの失敗は false */
+export async function isRecordNotFound(res: Response): Promise<boolean> {
+  const data = (await res.json().catch(() => undefined)) as { error?: unknown } | undefined
+  return data?.error === 'RecordNotFound'
+}
+
+/**
+ * 配置のうち、ステッカーが削除されたもの（PDS が RecordNotFound を返したもの）の URI。
+ * 一時的に読めなかっただけのものは含めない（その配置は消さずに残す）
+ */
+export async function findDeletedStickers(refs: StrongRef[]): Promise<Set<string>> {
+  const uris = [...new Set(refs.map((ref) => ref.uri))]
+  const deleted = await Promise.all(
+    uris.map(async (uri) => {
+      try {
+        const at = new AtUri(uri)
+        const { pds } = await resolveDid(at.host)
+        const params = new URLSearchParams({ repo: at.host, collection: at.collection, rkey: at.rkey })
+        const res = await fetch(`${pds}/xrpc/com.atproto.repo.getRecord?${params}`)
+        return !res.ok && (await isRecordNotFound(res))
+      } catch {
+        return false
+      }
+    }),
+  )
+  return new Set(uris.filter((_, i) => deleted[i]))
+}
+
 function sameRef(a: StrongRef | undefined, b: StrongRef | undefined): boolean {
   return !!a && !!b && a.uri === b.uri && a.cid === b.cid
 }
