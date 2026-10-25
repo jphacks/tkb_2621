@@ -28,7 +28,7 @@ import {
 import { subscribeFieldPlacements } from '../api/fieldLive.ts'
 import { resolveDid, stickerImageUrl } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
-import Avatar from '../components/Avatar.tsx'
+import { ProfileAvatar } from '../components/Profile.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import Loading from '../components/Loading.tsx'
@@ -514,7 +514,7 @@ export default function Field() {
         </small>
         <span className="field-members" aria-label={`メンバー${members?.length ?? ''}人`}>
           {shownMembers.map((d) => (
-            <Avatar key={d} did={d} size={28} />
+            <ProfileAvatar key={d} did={d} size={28} />
           ))}
           {moreMembers > 0 && <span className="field-members-more">+{moreMembers}</span>}
         </span>
