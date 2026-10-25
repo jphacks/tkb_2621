@@ -1606,3 +1606,7 @@ label:focus-within:has(> .visually-hidden) {
 .detail-delete {
   margin-top: var(--space-5);
 }
+
+.profile-avatar {
+  object-fit: cover;
+}
