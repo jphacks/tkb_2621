@@ -1,22 +1,26 @@
+import { lazy, Suspense } from 'react'
 import { Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import ConsentGate, { useNeedsConsent } from './components/ConsentGate.tsx'
 import PageHeader from './components/PageHeader.tsx'
 import TabBar from './components/TabBar.tsx'
+import Loading from './components/Loading.tsx'
 import Login from './pages/Login.tsx'
-import Timeline from './pages/Timeline.tsx'
-import Capture from './pages/Capture.tsx'
-import Binder from './pages/Binder.tsx'
-import BinderList from './pages/BinderList.tsx'
-import Exchange from './pages/Exchange.tsx'
-import ExchangeJoin from './pages/ExchangeJoin.tsx'
-import StickerDetail from './pages/StickerDetail.tsx'
-import FieldList from './pages/FieldList.tsx'
-import Field from './pages/Field.tsx'
-import FieldJoin from './pages/FieldJoin.tsx'
-import Tutorial from './pages/Tutorial.tsx'
 import OAuthCallback from './pages/OAuthCallback.tsx'
-import Terms from './pages/Terms.tsx'
-import Privacy from './pages/Privacy.tsx'
+
+// ログインまわり以外の画面は開いたときに読み込み、最初に落とす JS を小さくする
+const Timeline = lazy(() => import('./pages/Timeline.tsx'))
+const Capture = lazy(() => import('./pages/Capture.tsx'))
+const Binder = lazy(() => import('./pages/Binder.tsx'))
+const BinderList = lazy(() => import('./pages/BinderList.tsx'))
+const Exchange = lazy(() => import('./pages/Exchange.tsx'))
+const ExchangeJoin = lazy(() => import('./pages/ExchangeJoin.tsx'))
+const StickerDetail = lazy(() => import('./pages/StickerDetail.tsx'))
+const FieldList = lazy(() => import('./pages/FieldList.tsx'))
+const Field = lazy(() => import('./pages/Field.tsx'))
+const FieldJoin = lazy(() => import('./pages/FieldJoin.tsx'))
+const Tutorial = lazy(() => import('./pages/Tutorial.tsx'))
+const Terms = lazy(() => import('./pages/Terms.tsx'))
+const Privacy = lazy(() => import('./pages/Privacy.tsx'))
 
 // 上のヘッダーに出す画面名。ここにない画面（交換・ステッカー詳細）はヘッダーを出さない
 function headerTitle(pathname: string): string | undefined {
@@ -37,7 +41,9 @@ function TabLayout() {
       {title && !needsConsent && <PageHeader title={title} />}
       <main className="page">
         <ConsentGate>
-          <Outlet />
+          <Suspense fallback={<Loading />}>
+            <Outlet />
+          </Suspense>
         </ConsentGate>
       </main>
       {!needsConsent && <TabBar />}
@@ -51,8 +57,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<main className="page"><Login /></main>} />
         <Route path="/oauth/callback" element={<main className="page"><OAuthCallback /></main>} />
-        <Route path="/terms" element={<main className="page"><Terms /></main>} />
-        <Route path="/privacy" element={<main className="page"><Privacy /></main>} />
+        <Route path="/terms" element={<main className="page"><Suspense fallback={<Loading />}><Terms /></Suspense></main>} />
+        <Route path="/privacy" element={<main className="page"><Suspense fallback={<Loading />}><Privacy /></Suspense></main>} />
         <Route element={<TabLayout />}>
           <Route path="/" element={<Timeline />} />
           <Route path="/capture" element={<Capture />} />
