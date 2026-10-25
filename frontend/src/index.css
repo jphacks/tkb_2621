@@ -1169,9 +1169,63 @@ label:focus-within:has(> .visually-hidden) {
   margin-right: auto;
 }
 
+.field-members-root {
+  position: relative;
+}
+
 .field-members {
   display: flex;
   align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* アイコンの重なりを押すと、その下に出るメンバー一覧 */
+.field-members-panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 10;
+  width: 220px;
+  padding: var(--space-4) var(--space-3) var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  background: var(--color-selected-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.field-members-panel h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.field-members-panel ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 200px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.field-members-panel li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.field-members-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-lg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .field-members .avatar + .avatar {
@@ -1217,15 +1271,6 @@ label:focus-within:has(> .visually-hidden) {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-.field-members-title {
-  margin-top: var(--space-4);
-}
-
-.field-members-names {
-  margin: 0;
-  word-break: break-all;
 }
 
 .field-manage {

@@ -29,11 +29,11 @@ import { subscribeFieldPlacements } from '../api/fieldLive.ts'
 import { resolveDid } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import Handle from '../components/Handle.tsx'
-import { ProfileAvatar } from '../components/Profile.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
+import { DisplayName, ProfileAvatar } from '../components/Profile.tsx'
 import WantButton from '../components/WantButton.tsx'
 import { NSID, type Did, type FieldPlacement, type Placement } from '../lexicon-types.ts'
 
@@ -131,6 +131,7 @@ export default function Field() {
   const [pasting, setPasting] = useState(false)
   const [tapped, setTapped] = useState<FieldItem>()
   const [showInvite, setShowInvite] = useState(false)
+  const [showMembers, setShowMembers] = useState(false)
   const [selectedId, setSelectedId] = useState<string>()
   /** field が無い・サーバーで閉じた */
   const [deleted, setDeleted] = useState(false)
@@ -291,6 +292,24 @@ export default function Field() {
       cancelled = true
     }
   }, [members])
+
+  // メンバー一覧は、外を押すか Esc で閉じる
+  const membersRoot = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!showMembers) return
+    const onPointerDown = (e: PointerEvent) => {
+      if (!membersRoot.current?.contains(e.target as Node)) setShowMembers(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowMembers(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [showMembers])
 
   // ---- 保存（最後に動かしてから1秒後。画面を閉じるときはすぐ） ----
   const pending = useRef(new Set<string>())
@@ -505,12 +524,36 @@ export default function Field() {
         <small role="status" className="text-muted">
           {SAVE_LABEL[saveState]}
         </small>
-        <span className="field-members" aria-label={`メンバー${members?.length ?? ''}人`}>
-          {shownMembers.map((d) => (
-            <ProfileAvatar key={d} did={d} size={28} />
-          ))}
-          {moreMembers > 0 && <span className="field-members-more">+{moreMembers}</span>}
-        </span>
+        <div className="field-members-root" ref={membersRoot}>
+          <button
+            type="button"
+            className="field-members"
+            onClick={() => setShowMembers((v) => !v)}
+            disabled={!members}
+            aria-expanded={showMembers}
+            aria-label={`メンバー${members?.length ?? ''}人の一覧を${showMembers ? '閉じる' : '出す'}`}
+          >
+            {shownMembers.map((d) => (
+              <ProfileAvatar key={d} did={d} size={28} />
+            ))}
+            {moreMembers > 0 && <span className="field-members-more">+{moreMembers}</span>}
+          </button>
+          {showMembers && members && (
+            <div className="field-members-panel" role="dialog" aria-label="メンバー一覧">
+              <h2>メンバー一覧</h2>
+              <ul>
+                {members.map((d) => (
+                  <li key={d}>
+                    <ProfileAvatar did={d} size={32} />
+                    <span className="field-members-name">
+                      <DisplayName did={d} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
         <button
           type="button"
           className="round-button"
@@ -617,9 +660,6 @@ export default function Field() {
           </div>
         </div>
       )}
-
-      <h2 className="section-title field-members-title">メンバー（{members?.length ?? '…'}）</h2>
-      <p className="text-muted field-members-names">{members?.map(nameOf).join('、')}</p>
 
       {member && field && (
         <div className="field-manage">
