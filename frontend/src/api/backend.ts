@@ -47,6 +47,18 @@ export interface FieldMembersResponse {
   closed: boolean
 }
 
+export interface FieldInviteResponse {
+  /** 招待コード（6文字）。QR にも同じものを載せる */
+  code: string
+  /** 失効までの秒数（出したときは600） */
+  expiresIn: number
+}
+
+export interface FieldInviteLookupResponse {
+  field: StrongRef
+  expiresIn: number
+}
+
 export interface OkResponse {
   ok: boolean
 }
@@ -178,9 +190,22 @@ export function commitExchange(agent: Agent, sessionId: string, uri: string): Pr
   return backendFetch(agent, `/exchange/sessions/${encodeURIComponent(sessionId)}/commit`, { method: 'POST', body: { uri } })
 }
 
-/** 呼んだ人を共同フィールドのメンバーとして登録する（spec 7章1のタイムライン用） */
-export function joinField(agent: Agent, field: StrongRef): Promise<FieldMembersResponse> {
-  return backendFetch(agent, '/fields/join', { method: 'POST', body: { field } })
+/**
+ * 呼んだ人を共同フィールドのメンバーとして登録する（spec 7章1のタイムライン用）。
+ * まだメンバーでない人（作った人を除く）は招待コードが要る。403: コードが違う・期限切れ・ブロック関係 / 410: 閉じた / 429: 間違えすぎ
+ */
+export function joinField(agent: Agent, field: StrongRef, code?: string): Promise<FieldMembersResponse> {
+  return backendFetch(agent, '/fields/join', { method: 'POST', body: { field, code: code ?? null } })
+}
+
+/** メンバーが招待コードを出す。残りが長ければ、同じフィールドには同じコードが返る */
+export function createFieldInvite(agent: Agent, field: StrongRef): Promise<FieldInviteResponse> {
+  return backendFetch(agent, '/fields/invite', { method: 'POST', body: { field } })
+}
+
+/** 招待コードからフィールドを引く。403: コードが違う・期限切れ / 429: 間違えすぎ */
+export function lookupFieldInvite(agent: Agent, code: string): Promise<FieldInviteLookupResponse> {
+  return backendFetch(agent, '/fields/invite/lookup', { method: 'POST', body: { code } })
 }
 
 export function getFieldMembers(agent: Agent, uri: string): Promise<FieldMembersResponse> {

@@ -4,7 +4,18 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { joinField } from '../api/backend.ts'
-import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, discardCreatedField, fieldPath, listJoinedFields, type JoinedField } from '../api/field.ts'
+import {
+  FIELD_TITLE_MAX,
+  INVITE_CODE_LENGTH,
+  cleanupClosedOwnFields,
+  createField,
+  discardCreatedField,
+  fieldPath,
+  invitePathForCode,
+  listJoinedFields,
+  normalizeInviteCode,
+  type JoinedField,
+} from '../api/field.ts'
 import { readCache, writeCache } from '../api/screenCache.ts'
 import { countGraphemes } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
@@ -25,8 +36,8 @@ function invitePath(text: string): string | undefined {
     return undefined
   }
   if (url.origin !== window.location.origin || url.pathname !== '/fields/join') return undefined
-  if (!url.searchParams.get('uri') || !url.searchParams.get('cid')) return undefined
-  return `${url.pathname}${url.search}`
+  const code = normalizeInviteCode(url.searchParams.get('code') ?? '')
+  return code ? invitePathForCode(code) : undefined
 }
 
 export default function FieldList() {
@@ -41,9 +52,10 @@ export default function FieldList() {
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string>()
-  // 「新しく作る」の入力欄と「招待QRを読む」のカメラは、ボタンを押したときだけ開く
-  const [panel, setPanel] = useState<'create' | 'scan'>()
+  // 「新しく作る」の入力欄と「招待QRを読む」のカメラと「コードで参加」の入力欄は、ボタンを押したときだけ開く
+  const [panel, setPanel] = useState<'create' | 'scan' | 'code'>()
   const [scanError, setScanError] = useState<string>()
+  const [code, setCode] = useState('')
 
   useEffect(() => {
     if (!agent || !did) return
@@ -87,6 +99,14 @@ export default function FieldList() {
     }
   }
 
+  const normalizedCode = normalizeInviteCode(code)
+
+  function onCode(e: FormEvent) {
+    e.preventDefault()
+    if (normalizedCode.length !== INVITE_CODE_LENGTH) return
+    navigate(invitePathForCode(normalizedCode))
+  }
+
   function onScan(text: string): boolean {
     const path = invitePath(text)
     if (!path) {
@@ -106,6 +126,9 @@ export default function FieldList() {
         <button type="button" className="btn" onClick={() => setPanel(panel === 'scan' ? undefined : 'scan')} aria-expanded={panel === 'scan'}>
           <img src="/images/scan.svg" alt="" width={12} height={12} />
           招待QRを読む
+        </button>
+        <button type="button" className="btn" onClick={() => setPanel(panel === 'code' ? undefined : 'code')} aria-expanded={panel === 'code'}>
+          コードで参加
         </button>
       </div>
 
@@ -133,10 +156,34 @@ export default function FieldList() {
         </div>
       )}
 
+      {panel === 'code' && (
+        <form onSubmit={onCode} className="card field-create">
+          <label className="exchange-occasion">
+            招待コード（6文字）
+            <input
+              type="text"
+              className="input field-code-input"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="例：K7P 3QX"
+              autoCapitalize="characters"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={INVITE_CODE_LENGTH + 2}
+            />
+          </label>
+          <p className="text-muted">その場のメンバーに、共同フィールドの招待を出してもらってください。コードは10分で切れます</p>
+          <button type="submit" className="btn btn-primary btn-block" disabled={normalizedCode.length !== INVITE_CODE_LENGTH}>
+            次へ
+          </button>
+        </form>
+      )}
+
       <h2 className="field-list-title">参加中</h2>
       {listError && <p role="alert">読めませんでした：{listError}</p>}
       {!fields && !listError && <Loading />}
-      {fields?.length === 0 && <p className="text-muted">まだ参加していません。作るか、招待 QR を読んでください</p>}
+      {fields?.length === 0 && <p className="text-muted">まだ参加していません。作るか、招待 QR かコードで参加してください</p>}
       <ul className="field-list">
         {fields?.map((joined) => (
           <li key={joined.uri}>

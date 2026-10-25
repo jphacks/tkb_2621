@@ -1219,12 +1219,15 @@ label:focus-within:has(> .visually-hidden) {
 /* 共同フィールド */
 .field-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
 
+/* 3つ並ばない幅では折り返す */
 .field-actions .btn {
-  flex: 1;
+  flex: 1 1 auto;
+  white-space: nowrap;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
 }
@@ -1242,6 +1245,13 @@ label:focus-within:has(> .visually-hidden) {
 
 .field-create .capture-count {
   margin: 0;
+}
+
+.field-code-input {
+  font-size: var(--font-size-lg);
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .field-list-title {
@@ -1393,6 +1403,16 @@ label:focus-within:has(> .visually-hidden) {
 
 .field-invite {
   margin: 0 0 var(--space-3);
+}
+
+/* 会場のスクリーンに映しても読めるように大きく */
+.exchange-qr .field-invite-code {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 2rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.15em;
+  color: var(--color-text);
 }
 
 /* 白地にドット。キャンバスは透明にして、この背景を透かす */
