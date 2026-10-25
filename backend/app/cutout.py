@@ -28,6 +28,8 @@ SHRINK = 0.8
 MAX_RETRIES = 3
 # 縮小前の画素数の上限。大きな透過PNGは展開だけで数百MBになり、Render の 512MB を超える
 MAX_PIXELS = 30_000_000
+# 受け取るファイルの上限。読み込んだ中身はそのままメモリに載るので、画素数を見る前に大きさで断る
+MAX_UPLOAD_BYTES = 20_000_000
 
 BORDER_RATIO = 0.03  # 白フチの太さ（長辺に対する割合）
 SHADOW_BLUR_RATIO = 0.015  # 影のぼかし（ガウスの σ）
