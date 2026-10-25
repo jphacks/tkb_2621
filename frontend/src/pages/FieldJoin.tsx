@@ -5,6 +5,8 @@ import { BackendError, joinField } from '../api/backend.ts'
 import { fieldPath, getField, writeMember, type FieldView } from '../api/field.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
+import Loading from '../components/Loading.tsx'
+import PageHeader from '../components/PageHeader.tsx'
 
 // OAuthCallback.tsx と同じキー。ログインのあとにこの URL へ戻る
 const RETURN_TO_KEY = 'pikkles:returnTo'
@@ -37,7 +39,7 @@ export default function FieldJoin() {
     }
   }, [uri, cid])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') {
     try {
       sessionStorage.setItem(RETURN_TO_KEY, location.pathname + location.search)
@@ -68,23 +70,39 @@ export default function FieldJoin() {
 
   return (
     <>
-      <h1>共同フィールドへの招待</h1>
+      <PageHeader title="共同フィールド" />
+      <h1 className="field-list-title">共同フィールドへの招待</h1>
       {error ? (
         <>
-          <p role="alert">{error}</p>
-          <Link to="/fields">共同フィールド一覧へ</Link>
+          <p role="alert" className="notice">
+            {error}
+          </p>
+          <Link to="/fields" className="btn btn-primary btn-block account-action">
+            共同フィールド一覧へ
+          </Link>
         </>
       ) : !field ? (
-        <p>読み込み中…</p>
+        <Loading />
       ) : (
         <>
-          <p>「{field.title}」に招待されています。</p>
-          <p>参加すると、自分のピクルスをここに貼れます。</p>
-          <button type="button" onClick={onJoin} disabled={joining}>
+          <div className="card field-card field-invite-card">
+            <span className="field-card-thumb" aria-hidden="true" />
+            <span className="field-card-title">{field.title}</span>
+          </div>
+          <p className="field-invite-text">
+            「{field.title}」に招待されています。
+            <br />
+            参加すると、自分のピクルスをここに貼れます。
+          </p>
+          <button type="button" className="btn btn-primary btn-block" onClick={onJoin} disabled={joining}>
             {joining ? '参加しています…' : '参加する'}
           </button>
           {joining && <BackendWaking />}
-          {joinError && <p role="alert">{joinError}</p>}
+          {joinError && (
+            <p role="alert" className="notice field-invite-error">
+              {joinError}
+            </p>
+          )}
         </>
       )}
     </>

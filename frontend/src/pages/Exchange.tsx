@@ -6,6 +6,7 @@ import { BackendError, createSession, refreshQr } from '../api/backend.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import ExchangeRoom from '../components/ExchangeRoom.tsx'
+import Loading from '../components/Loading.tsx'
 
 const OCCASION_MAX = 50
 // 参加URLは60秒で失効するので、50秒ごとに QR を作り直す
@@ -116,7 +117,7 @@ export default function Exchange() {
 
   const onJoined = useCallback(() => setJoined(true), [])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
 
   async function onSubmit(e: FormEvent) {

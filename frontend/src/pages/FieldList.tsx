@@ -4,11 +4,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { joinField } from '../api/backend.ts'
-import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, fieldPath, listJoinedFields, type JoinedField } from '../api/field.ts'
+import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, discardCreatedField, fieldPath, listJoinedFields, type JoinedField } from '../api/field.ts'
 import { readCache, writeCache } from '../api/screenCache.ts'
 import { countGraphemes } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
+import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 
 function errorMessage(e: unknown): string {
@@ -46,7 +47,7 @@ export default function FieldList() {
     }
   }, [agent, did])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
 
   const titleLength = countGraphemes(title.trim())
@@ -58,7 +59,13 @@ export default function FieldList() {
     setCreateError(undefined)
     try {
       const ref = await createField(agent, did, title)
-      await joinField(agent, ref)
+      try {
+        await joinField(agent, ref)
+      } catch (err) {
+        // 一覧に「作れなかった」フィールドが残り、作り直すと2つになるので、書いたものを消しておく
+        await discardCreatedField(agent, did, ref).catch(() => undefined)
+        throw err
+      }
       navigate(fieldPath(ref))
     } catch (e) {
       setCreateError(`作れませんでした：${errorMessage(e)}`)
@@ -106,7 +113,7 @@ export default function FieldList() {
 
       <h2 className="field-list-title">参加中</h2>
       {listError && <p role="alert">読めませんでした：{listError}</p>}
-      {!fields && !listError && <p className="text-muted">読み込み中…</p>}
+      {!fields && !listError && <Loading />}
       {fields?.length === 0 && <p className="text-muted">まだ参加していません。作るか、招待 QR を iPhone のカメラで読んでください</p>}
       <ul className="field-list">
         {fields?.map((joined) => (

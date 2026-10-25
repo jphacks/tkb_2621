@@ -8,6 +8,7 @@ import { readCache, writeCache } from '../api/screenCache.ts'
 import { getSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
+import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 import { DisplayName, ProfileAvatar } from '../components/Profile.tsx'
 import StickerImage from '../components/StickerImage.tsx'
@@ -191,7 +192,7 @@ export default function Timeline() {
     return () => observer.disconnect()
   }, [loadMore, error, refreshing])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut' || !agent) return <Navigate to="/login" replace />
 
   const shown = dedupe(items)
@@ -205,7 +206,7 @@ export default function Timeline() {
           <Event key={item.uri} item={item} agent={agent} me={auth.did} />
         ))}
       </div>
-      {loading && <p className="text-muted">読み込み中…</p>}
+      {loading && (shown.length === 0 ? <Loading /> : <p className="text-muted">読み込み中…</p>)}
       {loading && <BackendWaking />}
       {error && (
         <p role="alert">

@@ -31,6 +31,7 @@ import { useAuth } from '../auth/AuthContext.tsx'
 import Avatar from '../components/Avatar.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
+import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 import WantButton from '../components/WantButton.tsx'
 import { NSID, type Did, type FieldPlacement, type Placement, type StrongRef, type Sticker } from '../lexicon-types.ts'
@@ -340,7 +341,7 @@ export default function Field() {
     }
   }, [flush])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
 
   function update(uri: string, next: FieldItem[]) {
@@ -561,7 +562,7 @@ export default function Field() {
           board
         />
       ) : (
-        !error && <p className="text-muted">読み込み中…</p>
+        !error && <Loading />
       )}
 
       {tapped && (

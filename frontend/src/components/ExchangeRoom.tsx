@@ -3,6 +3,7 @@ import { AtUri, type Agent } from '@atproto/api'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from './Avatar.tsx'
+import Loading from './Loading.tsx'
 import {
   commitExchange,
   openExchangeSocket,
@@ -11,6 +12,7 @@ import {
   type ExchangeView,
   type ServerMessage,
 } from '../api/backend.ts'
+import { listOwnRecords } from '../api/binder.ts'
 import { getPartnerMessage, MESSAGE_MAX } from '../api/exchange.ts'
 import { follow, isFollowing } from '../api/follow.ts'
 import { countGraphemes, getSticker, resolveDid, stickerImageUrl } from '../api/sticker.ts'
@@ -121,6 +123,8 @@ export default function ExchangeRoom(props: {
   /** 相手に渡す一言（任意） */
   const [message, setMessage] = useState('')
   const [partnerRef, setPartnerRef] = useState<StrongRef>()
+  /** 相手が選び直したので、自分の確定が取り消された */
+  const [partnerChanged, setPartnerChanged] = useState(false)
   const [partnerImage, setPartnerImage] = useState<string>()
   const [partnerHandle, setPartnerHandle] = useState<string>()
   const [rejected, setRejected] = useState(false)
@@ -139,16 +143,13 @@ export default function ExchangeRoom(props: {
   const partnerDid = partnerRef ? new AtUri(partnerRef.uri).host : undefined
   const joined = props.partnerJoined || partnerRef !== undefined
 
-  // 自分のステッカーを並べる
+  // 自分のステッカーを並べる（100件を超えても全ページ読む）
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const { data } = await agent.com.atproto.repo.listRecords({ repo: did, collection: NSID.sticker, limit: 100 })
+      const records = await listOwnRecords<Sticker>(agent, did, NSID.sticker)
       const items = await Promise.all(
-        data.records.map(async (r) => {
-          const sticker = r.value as unknown as Sticker
-          return { ref: { uri: r.uri, cid: r.cid }, sticker, imageUrl: await stickerImageUrl(did, sticker) }
-        }),
+        records.map(async (r) => ({ ref: { uri: r.uri, cid: r.cid }, sticker: r.value, imageUrl: await stickerImageUrl(did, r.value) })),
       )
       if (!cancelled) setMyStickers(items)
     })().catch((e: unknown) => {
@@ -239,9 +240,16 @@ export default function ExchangeRoom(props: {
 
   function onMessage(message: ServerMessage) {
     switch (message.type) {
-      case 'partner_selected':
+      case 'partner_selected': {
+        const prev = latest.current.partnerRef
+        if (prev && (prev.uri !== message.sticker.uri || prev.cid !== message.sticker.cid)) {
+          // サーバーは相手の選び直しで自分の確定を取り消すので、画面も確定する前に戻す
+          setConfirmed(false)
+          setPartnerChanged(true)
+        }
         setPartnerRef(message.sticker)
         break
+      }
       case 'both_confirmed':
         setOccasion(message.occasion)
         if (!recordStarted.current) {
@@ -285,6 +293,7 @@ export default function ExchangeRoom(props: {
   function confirm() {
     if (!selected || messageTooLong) return
     setConfirmed(true)
+    setPartnerChanged(false)
     socketRef.current?.send({ type: 'confirm' })
   }
 
@@ -438,7 +447,7 @@ export default function ExchangeRoom(props: {
 
       <h2 className="exchange-mine-title">あなたのピクルス</h2>
       {loadError && <p role="alert">ピクルスを読めませんでした：{loadError}</p>}
-      {!myStickers && !loadError && <p className="text-muted">読み込み中…</p>}
+      {!myStickers && !loadError && <Loading />}
       {myStickers?.length === 0 && (
         <p>
           ピクルスがありません。<Link to="/capture">撮影する</Link>
@@ -482,7 +491,11 @@ export default function ExchangeRoom(props: {
       </p>
 
       <p className="exchange-hint exchange-confirm-hint">
-        {confirmed ? '相手の確定を待っています…' : '2人とも確定すると交換が成立します'}
+        {confirmed
+          ? '相手の確定を待っています…'
+          : partnerChanged
+            ? '相手が選び直しました。確かめてから、もう一度確定してください'
+            : '2人とも確定すると交換が成立します'}
       </p>
       <button type="button" className="btn btn-primary btn-block exchange-pick" onClick={confirm} disabled={!selected || !partnerRef || confirmed || messageTooLong}>
         {confirmed ? '確定しました' : 'Pick!'}

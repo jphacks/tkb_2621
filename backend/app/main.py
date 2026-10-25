@@ -96,8 +96,13 @@ def cutout(
     did: str = Depends(require_did),
 ) -> CutoutResponse:
     logger.info("cutout requested: did=%s source=%s", did, source)
+    # 上限を1バイト超えるところまでしか読まない（大きなファイルを丸ごとメモリに載せない）
+    data = image.file.read(cutout_service.MAX_UPLOAD_BYTES + 1)
+    if len(data) > cutout_service.MAX_UPLOAD_BYTES:
+        logger.info("cutout rejected: did=%s source=%s: upload too large", did, source)
+        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "画像が大きすぎます（20MB まで）")
     try:
-        return cutout_service.cutout(image.file.read(), source)
+        return cutout_service.cutout(data, source)
     except ValueError as e:
         logger.info("cutout rejected: did=%s source=%s: %s", did, source, e)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e

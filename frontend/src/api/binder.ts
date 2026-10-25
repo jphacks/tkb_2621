@@ -133,14 +133,16 @@ function sameRef(a: StrongRef | undefined, b: StrongRef | undefined): boolean {
 }
 
 /**
- * 成立した交換で受け取ったステッカーの strongRef。
+ * 自分の PDS の exchange のうち、成立したもの。
  * 自分の PDS の記録だけでは成立したか分からない（照合の前に書くので、落ちても残る）。
  * そこで相手の PDS に対になる記録があるものだけを残す（spec 6章の成立条件1〜4と同じ中身）。
+ * filter を渡すと、それに合う記録の相手の PDS だけを読む
  */
-async function listReceivedRefs(agent: Agent, did: Did): Promise<StrongRef[]> {
+export async function listEstablishedExchanges(agent: Agent, did: Did, filter?: (exchange: Exchange) => boolean): Promise<Exchange[]> {
   const mine = await listOwnRecords<Exchange>(agent, did, NSID.exchange)
   const byPartner = new Map<Did, Exchange[]>()
   for (const { value } of mine) {
+    if (filter && !filter(value)) continue
     const owner = (() => {
       try {
         const uri = new AtUri(value.received.uri)
@@ -154,7 +156,7 @@ async function listReceivedRefs(agent: Agent, did: Did): Promise<StrongRef[]> {
     byPartner.set(value.partner, [...(byPartner.get(value.partner) ?? []), value])
   }
 
-  const refs = await Promise.all(
+  const established = await Promise.all(
     [...byPartner].map(async ([partner, exchanges]) => {
       let theirs: ListedRecord<Exchange>[]
       try {
@@ -173,10 +175,14 @@ async function listReceivedRefs(agent: Agent, did: Did): Promise<StrongRef[]> {
               sameRef(t.received, mineEx.gave),
           ),
         )
-        .map((ex) => ex.received)
     }),
   )
-  return refs.flat()
+  return established.flat()
+}
+
+/** 成立した交換で受け取ったステッカーの strongRef */
+async function listReceivedRefs(agent: Agent, did: Did): Promise<StrongRef[]> {
+  return (await listEstablishedExchanges(agent, did)).map((ex) => ex.received)
 }
 
 /** 手持ちのステッカー。strongRef の先が読めない（削除された）ものは出さない */

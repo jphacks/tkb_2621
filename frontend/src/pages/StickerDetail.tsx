@@ -1,16 +1,17 @@
 // S6 ピクルス詳細（docs/sticker-detail.md）。持ち主の PDS からステッカーを読み、作った人の Bluesky のプロフィールと、
-// 自分の PDS の exchange に受け取った記録があればその日時と場面と、相手の記録にある一言を出す。
+// 成立した交換で受け取っていればその日時と場面と、相手の記録にある一言を出す。
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { listOwnRecords } from '../api/binder.ts'
+import { listEstablishedExchanges } from '../api/binder.ts'
 import { getPartnerMessage } from '../api/exchange.ts'
 import { getProfile, type Profile } from '../api/profile.ts'
 import { deleteSticker, getStickerByRkey } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import Avatar from '../components/Avatar.tsx'
 import Handle from '../components/Handle.tsx'
+import Loading from '../components/Loading.tsx'
 import StickerImage from '../components/StickerImage.tsx'
-import { NSID, type Did, type Exchange, type StrongRef, type Sticker } from '../lexicon-types.ts'
+import type { Did, Exchange, StrongRef, Sticker } from '../lexicon-types.ts'
 
 type State = { status: 'loading' } | { status: 'gone' } | { status: 'ok'; ref: StrongRef; sticker: Sticker }
 
@@ -148,17 +149,9 @@ export default function StickerDetail() {
   useEffect(() => {
     if (!agent || !myDid || !stickerUri) return
     let cancelled = false
-    listOwnRecords<Exchange>(agent, myDid, NSID.exchange)
-      .then(
-        (records) =>
-          !cancelled &&
-          setExchanges(
-            records
-              .map((r) => r.value)
-              .filter((x) => x.received?.uri === stickerUri)
-              .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-          ),
-      )
+    // 成立しなかった交換の記録も自分の PDS に残るので、相手の PDS に対になる記録があるものだけを出す
+    listEstablishedExchanges(agent, myDid, (x) => x.received?.uri === stickerUri)
+      .then((list) => !cancelled && setExchanges(list.sort((a, b) => b.createdAt.localeCompare(a.createdAt))))
       .catch(() => {})
     return () => {
       cancelled = true
@@ -186,7 +179,7 @@ export default function StickerDetail() {
         <img src="/images/back.svg" alt="" width={13} height={18} />
       </button>
 
-      {state.status === 'loading' && <p>読み込み中…</p>}
+      {state.status === 'loading' && <Loading />}
       {state.status === 'gone' && <p className="detail-gone">このピクルスは削除されました</p>}
       {state.status === 'ok' && (
         <>

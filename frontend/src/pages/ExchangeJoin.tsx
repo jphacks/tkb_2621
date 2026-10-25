@@ -5,6 +5,7 @@ import { BackendError, joinSession } from '../api/backend.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import ExchangeRoom from '../components/ExchangeRoom.tsx'
+import Loading from '../components/Loading.tsx'
 
 // OAuthCallback.tsx と同じキー。ログインのあとにこの URL へ戻る
 const RETURN_TO_KEY = 'pikkles:returnTo'
@@ -41,7 +42,7 @@ export default function ExchangeJoin() {
     }
   }, [agent, sessionId, t])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') {
     try {
       sessionStorage.setItem(RETURN_TO_KEY, location.pathname + location.search)
