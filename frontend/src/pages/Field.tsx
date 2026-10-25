@@ -562,7 +562,7 @@ export default function Field() {
           board
         />
       ) : (
-        !error && <p className="text-muted">読み込み中…</p>
+        !error && <Loading />
       )}
 
       {tapped && (

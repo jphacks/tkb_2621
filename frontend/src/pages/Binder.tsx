@@ -273,7 +273,7 @@ export default function Binder() {
       {canvasItems ? (
         <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} jar />
       ) : (
-        !pageError && <p className="text-muted">読み込み中…</p>
+        !pageError && <Loading />
       )}
 
       <div className="binder-dock">

@@ -39,6 +39,9 @@
   --color-text-hint: #848484;
   --color-selected-bg: #edffdb;
   --color-selected-border: #02380e;
+  --color-loading-veil: rgba(246, 245, 240, 0.72);
+  --color-pickle-seed: #f7f3de;
+  --color-pickle-seed-lit: #4e7f33;
   --color-tag-place: #9bd676;
   --color-tag-text: #f6f5f0;
   --color-exchange-bg: #f7ffeb;
@@ -1607,38 +1610,53 @@ label:focus-within:has(> .visually-hidden) {
   margin-top: var(--space-5);
 }
 
-/* 開いた直後の読み込み中。ロゴをビンのステッカーと同じようにゆっくり揺らす */
+/* 画面を開いた直後・読み込み中。下のタブ以外を半透明でおおう（位置と幅は Loading.tsx で .app とタブに合わせる） */
 .loading {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  min-height: 60vh;
+  background: var(--color-loading-veil);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
   color: var(--color-text-muted);
   font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
 }
 
 .loading p {
   margin: 0;
 }
 
-.loading img {
+.pickle-spinner {
   filter: drop-shadow(var(--shadow-logo));
-  animation: loading-float 1.6s ease-in-out infinite alternate;
 }
 
-@keyframes loading-float {
-  from {
-    transform: translateY(3px) rotate(-4deg);
+/* 種を1つずつ色づける。遅れは Loading.tsx で1つずつずらしてあり、色が時計回りに回って見える */
+.pickle-seeds ellipse {
+  fill: var(--color-pickle-seed);
+  animation: pickle-seed 1.2s linear infinite;
+}
+
+@keyframes pickle-seed {
+  0% {
+    fill: var(--color-pickle-seed-lit);
   }
-  to {
-    transform: translateY(-3px) rotate(4deg);
+  45%,
+  100% {
+    fill: var(--color-pickle-seed);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loading img {
+  .pickle-seeds ellipse {
     animation: none;
   }
 }

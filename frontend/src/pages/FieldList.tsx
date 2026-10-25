@@ -101,7 +101,7 @@ export default function FieldList() {
 
       <h2 className="field-list-title">参加中</h2>
       {listError && <p role="alert">読めませんでした：{listError}</p>}
-      {!fields && !listError && <p className="text-muted">読み込み中…</p>}
+      {!fields && !listError && <Loading />}
       {fields?.length === 0 && <p className="text-muted">まだ参加していません。作るか、招待 QR を iPhone のカメラで読んでください</p>}
       <ul className="field-list">
         {fields?.map((joined) => (

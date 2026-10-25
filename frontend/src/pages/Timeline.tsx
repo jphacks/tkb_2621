@@ -173,7 +173,7 @@ export default function Timeline() {
           <Event key={item.uri} item={item} agent={agent} me={auth.did} />
         ))}
       </div>
-      {loading && <p className="text-muted">読み込み中…</p>}
+      {loading && (shown.length === 0 ? <Loading /> : <p className="text-muted">読み込み中…</p>)}
       {loading && <BackendWaking />}
       {error && (
         <p role="alert">
