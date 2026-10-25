@@ -2,7 +2,6 @@
 // 初めてタイムラインを開いたときに一度だけここへ送る。見終わる・スキップすると印を付け、次からは送らない。
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import PageHeader from '../components/PageHeader.tsx'
 import { markTutorialSeen } from '../components/tutorial.ts'
 
 interface Step {
@@ -66,7 +65,6 @@ export default function Tutorial() {
 
   return (
     <>
-      <PageHeader title="使い方" />
       <section className="card tutorial-card" aria-live="polite">
         <p className="tutorial-count">
           {index + 1} / {STEPS.length}

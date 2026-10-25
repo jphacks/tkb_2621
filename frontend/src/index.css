@@ -415,6 +415,15 @@ body {
   margin-bottom: var(--space-3);
 }
 
+.app > .page-header {
+  margin-bottom: 0;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.app > .page-header + .page {
+  padding-top: var(--space-3);
+}
+
 .page-header-logo {
   display: flex;
   align-items: center;

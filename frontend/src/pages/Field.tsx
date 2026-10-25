@@ -32,7 +32,6 @@ import Handle from '../components/Handle.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import Loading from '../components/Loading.tsx'
-import PageHeader from '../components/PageHeader.tsx'
 import { DisplayName, ProfileAvatar } from '../components/Profile.tsx'
 import WantButton from '../components/WantButton.tsx'
 import { NSID, type Did, type FieldPlacement, type Placement } from '../lexicon-types.ts'
@@ -486,7 +485,6 @@ export default function Field() {
 
   const header = (
     <>
-      <PageHeader title="共同フィールド" />
       <div className="back-header field-header">
         <Link to="/fields" className="icon-button" aria-label="一覧にもどる">
           <img src="/images/back.svg" alt="" width={13} height={18} />

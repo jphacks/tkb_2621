@@ -6,7 +6,6 @@ import { fieldPath, getField, writeMember, type FieldView } from '../api/field.t
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import Loading from '../components/Loading.tsx'
-import PageHeader from '../components/PageHeader.tsx'
 
 // OAuthCallback.tsx と同じキー。ログインのあとにこの URL へ戻る
 const RETURN_TO_KEY = 'pikkles:returnTo'
@@ -70,7 +69,6 @@ export default function FieldJoin() {
 
   return (
     <>
-      <PageHeader title="共同フィールド" />
       <h1 className="field-list-title">共同フィールドへの招待</h1>
       {error ? (
         <>

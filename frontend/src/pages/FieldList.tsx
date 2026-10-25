@@ -10,7 +10,6 @@ import { countGraphemes } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import Loading from '../components/Loading.tsx'
-import PageHeader from '../components/PageHeader.tsx'
 import QrScanner from '../components/QrScanner.tsx'
 
 function errorMessage(e: unknown): string {
@@ -100,8 +99,6 @@ export default function FieldList() {
 
   return (
     <>
-      <PageHeader title="共同フィールド" />
-
       <div className="field-actions">
         <button type="button" className="btn btn-primary" onClick={() => setPanel(panel === 'create' ? undefined : 'create')} aria-expanded={panel === 'create'}>
           ＋ 新しく作る
