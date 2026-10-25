@@ -71,6 +71,8 @@ export interface Sticker {
 export interface BinderPage {
   $type: typeof NSID.binderPage
   placements: Placement[]
+  /** 任意。ページの漬け液（背景の色）。knownValues は dill・ume・beet・curry。無いときや知らない値は dill */
+  brine?: string
   updatedAt: Datetime
 }
 

@@ -29,8 +29,15 @@
   --color-tag-illustration: #95a0d7;
   --color-viewer: #343434;
   --color-viewer-frame: #f1f1f1;
-  --color-jar-from: rgba(108, 170, 75, 0.24);
-  --color-jar-to: rgba(69, 107, 59, 0.24);
+  /* ビンの漬け液。画面の地の色（--color-bg）の上に重ねる半透明のグラデーション */
+  --brine-dill-top: rgba(108, 170, 75, 0.24);
+  --brine-dill-bottom: rgba(69, 107, 59, 0.24);
+  --brine-ume-top: rgba(176, 82, 138, 0.2);
+  --brine-ume-bottom: rgba(122, 48, 104, 0.24);
+  --brine-beet-top: rgba(240, 128, 168, 0.2);
+  --brine-beet-bottom: rgba(214, 84, 138, 0.24);
+  --brine-curry-top: rgba(244, 196, 60, 0.26);
+  --brine-curry-bottom: rgba(214, 152, 28, 0.28);
   --color-round-border: #959595;
   --color-scan-border: #c2c2c2;
   --color-field-dot: #e4e2da;
@@ -1023,13 +1030,61 @@ label:focus-within:has(> .visually-hidden) {
   align-items: flex-start;
 }
 
-/* 漬け液のような薄い緑。キャンバスは透明にして、この背景と泡を透かす */
+/* 漬け液。data-brine で色を替える（無いときや知らない値は dill の薄い緑）。キャンバスは透明にして、この背景と泡を透かす */
+.binder-jar,
+.binder-brine-option {
+  --brine-top: var(--brine-dill-top);
+  --brine-bottom: var(--brine-dill-bottom);
+  background: linear-gradient(to bottom, var(--brine-top), var(--brine-bottom));
+}
+
+[data-brine='ume'] {
+  --brine-top: var(--brine-ume-top);
+  --brine-bottom: var(--brine-ume-bottom);
+}
+
+[data-brine='beet'] {
+  --brine-top: var(--brine-beet-top);
+  --brine-bottom: var(--brine-beet-bottom);
+}
+
+[data-brine='curry'] {
+  --brine-top: var(--brine-curry-top);
+  --brine-bottom: var(--brine-curry-bottom);
+}
+
 .binder-jar {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--color-border-input);
   border-radius: var(--radius-button);
-  background: linear-gradient(to bottom, var(--color-jar-from), var(--color-jar-to));
+}
+
+/* 漬け液を選ぶ丸。ページ送りの下に右寄せで並べる */
+.binder-brine {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin: calc(-1 * var(--space-1)) 0 var(--space-3);
+}
+
+.binder-brine-option {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border-input);
+  border-radius: 50%;
+  background-color: var(--color-bg);
+  cursor: pointer;
+}
+
+.binder-brine-option[aria-checked='true'] {
+  border: 2px solid var(--color-selected-border);
+}
+
+.binder-brine-option:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .binder-jar .konvajs-content {

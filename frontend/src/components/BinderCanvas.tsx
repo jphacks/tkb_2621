@@ -126,10 +126,12 @@ export default function BinderCanvas(props: {
   onTapLocked?: (id: string) => void
   /** true ならビン（シール帳）の見た目にして、ステッカーをぷかぷか揺らす */
   jar?: boolean
+  /** ビンの漬け液（背景の色）。jar のときだけ使う。無ければ dill */
+  brine?: string
   /** true なら共同フィールドの見た目（白地にドット）にする。揺らさない */
   board?: boolean
 }) {
-  const { items, selectedId, onSelect, onFront, onChange, onPeel, onTapLocked, jar, board } = props
+  const { items, selectedId, onSelect, onFront, onChange, onPeel, onTapLocked, jar, brine, board } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const [pageWidth, setPageWidth] = useState(0)
   const nodes = useRef(new Map<string, Konva.Image>())
@@ -255,7 +257,7 @@ export default function BinderCanvas(props: {
 
   return (
     <div ref={containerRef} className="canvas-fit">
-      <div className={jar ? 'binder-jar' : board ? 'field-board' : undefined} style={{ width: pageWidth }}>
+      <div className={jar ? 'binder-jar' : board ? 'field-board' : undefined} data-brine={jar ? brine : undefined} style={{ width: pageWidth }}>
         {jar && (
           <div className="binder-bubbles" aria-hidden="true">
             {BUBBLES.map((b) => (
