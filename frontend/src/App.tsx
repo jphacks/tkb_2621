@@ -11,6 +11,7 @@ import StickerDetail from './pages/StickerDetail.tsx'
 import FieldList from './pages/FieldList.tsx'
 import Field from './pages/Field.tsx'
 import FieldJoin from './pages/FieldJoin.tsx'
+import Tutorial from './pages/Tutorial.tsx'
 import OAuthCallback from './pages/OAuthCallback.tsx'
 
 function TabLayout() {
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/fields" element={<FieldList />} />
           <Route path="/fields/join" element={<FieldJoin />} />
           <Route path="/fields/:did/:rkey" element={<Field />} />
+          <Route path="/tutorial" element={<Tutorial />} />
         </Route>
       </Routes>
     </div>

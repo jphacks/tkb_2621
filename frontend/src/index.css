@@ -1954,3 +1954,138 @@ label:focus-within:has(> .visually-hidden) {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+/* 使い方。1枚ずつ絵と説明を出す */
+.tutorial-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.tutorial-count {
+  align-self: flex-end;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.tutorial-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+}
+
+.tutorial-trim {
+  position: relative;
+  padding: var(--space-3);
+  background: var(--color-viewer);
+}
+
+.tutorial-trim img {
+  display: block;
+}
+
+.tutorial-trim-frame {
+  position: absolute;
+  inset: var(--space-2);
+  border: 2px solid #fff;
+}
+
+.tutorial-trim-frame .trim-handle {
+  width: 14px;
+  height: 14px;
+}
+
+.tutorial-trim-frame .trim-handle-nw {
+  top: -8px;
+  left: -8px;
+}
+
+.tutorial-trim-frame .trim-handle-ne {
+  top: -8px;
+  right: -8px;
+}
+
+.tutorial-trim-frame .trim-handle-sw {
+  bottom: -8px;
+  left: -8px;
+}
+
+.tutorial-trim-frame .trim-handle-se {
+  right: -8px;
+  bottom: -8px;
+}
+
+.tutorial-jar {
+  width: 120px;
+  height: 120px;
+}
+
+.tutorial-jar img {
+  position: absolute;
+}
+
+.tutorial-jar-a {
+  top: 18px;
+  left: 14px;
+  transform: rotate(-12deg);
+}
+
+.tutorial-jar-b {
+  right: 12px;
+  bottom: 16px;
+  transform: rotate(10deg);
+}
+
+.tutorial-title {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.tutorial-line {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-strong);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+}
+
+.tutorial-dots {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+}
+
+.tutorial-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.tutorial-dot.active {
+  background: var(--color-primary);
+}
+
+.tutorial-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.tutorial-skip,
+.tutorial-link {
+  display: block;
+  margin: var(--space-4) auto 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  text-align: center;
+  text-decoration: underline;
+  cursor: pointer;
+}
