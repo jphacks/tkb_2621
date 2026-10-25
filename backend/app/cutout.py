@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 import psutil
-from PIL import Image, ImageOps
+from PIL import ExifTags, Image, ImageOps
 from rembg import remove
 from rembg.sessions.base import BaseSession
 from rembg.sessions.u2netp import U2netpSession
@@ -105,6 +105,10 @@ def _load(data: bytes, mode: str) -> Image.Image:
             src.draft("RGB", (MAX_SIDE, MAX_SIDE))
             if src.width * src.height > MAX_PIXELS:
                 raise ValueError("画像が大きすぎます")
+            # 先に長辺 MAX_SIDE まで縮め、大きな画像の複製を作らない（25MP の透過PNGでピークが約95MB減る）。
+            # パレット画像は縮めると色が崩れ、形式の変換や EXIF の回転と順番を入れ替えると結果が変わるので、そのときは後で縮める
+            if src.mode == mode and src.getexif().get(ExifTags.Base.Orientation, 1) == 1:
+                src.thumbnail((MAX_SIDE, MAX_SIDE), Image.Resampling.LANCZOS)
             # EXIF の向きを画素に反映してから、EXIF ごと捨てる
             image = ImageOps.exif_transpose(src).convert(mode)
     except (OSError, Image.DecompressionBombError) as e:
