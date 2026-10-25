@@ -1,12 +1,13 @@
 // S5 対面交換：始める側（A）。場面を入れてセッションを作り、参加用の QR を出す。
 import QRCode from 'qrcode'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { BackendError, createSession, refreshQr } from '../api/backend.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import ExchangeRoom from '../components/ExchangeRoom.tsx'
 import Loading from '../components/Loading.tsx'
+import QrScanner from '../components/QrScanner.tsx'
 
 const OCCASION_MAX = 50
 // 参加URLは60秒で失効するので、50秒ごとに QR を作り直す
@@ -57,16 +58,42 @@ function QrCard({ url }: { url: string }) {
   )
 }
 
-/** 相手の QR を読む方法。アプリの中で読み取る機能はまだ無いので、iPhone のカメラで読むように案内する */
+/** 読んだ QR が Pikkles の交換の参加 URL（/exchange/join/:sessionId?t=…）なら、開く先のパスを返す。ほかのサイトの URL は開かない */
+function joinPath(text: string): string | undefined {
+  let url: URL
+  try {
+    url = new URL(text)
+  } catch {
+    return undefined
+  }
+  if (url.origin !== window.location.origin || !/^\/exchange\/join\/[^/]+$/.test(url.pathname)) return undefined
+  if (!url.searchParams.get('t')) return undefined
+  return `${url.pathname}${url.search}`
+}
+
+/** 相手の QR を画面の中のカメラで読み、交換に参加するページを開く */
 function ScanPartner() {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [scanError, setScanError] = useState<string>()
+
+  function onScan(text: string): boolean {
+    const path = joinPath(text)
+    if (!path) {
+      setScanError('交換の QR ではありません')
+      return false
+    }
+    navigate(path)
+    return true
+  }
+
   return (
     <>
       <div className="or-divider">または</div>
       {open && (
-        <div className="notice exchange-scan-hint">
-          <p className="notice-title">相手の QR を iPhone のカメラで読み取ってください</p>
-          <p>カメラアプリを開いて相手の画面の QR に向けると、交換に参加するページが開きます</p>
+        <div className="exchange-scan-hint">
+          <QrScanner hint="相手の QR を枠の中に" onResult={onScan} />
+          {scanError && <p role="alert">{scanError}</p>}
         </div>
       )}
       <button type="button" className="btn btn-block exchange-scan" onClick={() => setOpen(!open)} aria-expanded={open}>
