@@ -1996,7 +1996,7 @@ label:focus-within:has(> .visually-hidden) {
   background: var(--color-surface);
 }
 
-.pickle-grid-image img {
+.pickle-grid-image > img {
   position: absolute;
   top: var(--space-2);
   left: var(--space-2);
