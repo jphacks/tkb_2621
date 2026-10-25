@@ -31,7 +31,7 @@ const AVATAR_SIZE = 38
 
 type ProfileState = { status: 'loading' } | { status: 'failed' } | { status: 'ok'; profile: Profile }
 
-/** ③ 作った人のプロフィールカード。読めないときはハンドルか DID だけを出す */
+/** ③ 作った人のプロフィールカード。読めないときはハンドルか DID だけを出す。押すと Bluesky のプロフィールを開く */
 function ProfileCard({ did }: { did: Did }) {
   const [loaded, setLoaded] = useState<{ did: Did; state: ProfileState }>()
   const state: ProfileState = loaded?.did === did ? loaded.state : { status: 'loading' }
@@ -50,7 +50,13 @@ function ProfileCard({ did }: { did: Did }) {
   const bio = profile?.description?.trim()
 
   return (
-    <section className="detail-card" aria-busy={state.status === 'loading'}>
+    <a
+      className="detail-card detail-card-link"
+      href={`https://bsky.app/profile/${did}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-busy={state.status === 'loading'}
+    >
       <h2 className="detail-card-label">作成者</h2>
       <div className="detail-profile">
         {state.status === 'loading' ? (
@@ -76,7 +82,7 @@ function ProfileCard({ did }: { did: Did }) {
         </div>
       </div>
       {bio && <p className="detail-profile-bio">{bio}</p>}
-    </section>
+    </a>
   )
 }
 
