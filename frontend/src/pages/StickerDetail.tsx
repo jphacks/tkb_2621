@@ -1,12 +1,15 @@
-// S6 ステッカー詳細。持ち主の PDS からステッカーを読み、自分の PDS の exchange に受け取った記録があれば相手と日時と場面を出す。
+// S6 ピクルス詳細（docs/sticker-detail.md）。持ち主の PDS からステッカーを読み、作った人の Bluesky のプロフィールと、
+// 自分の PDS の exchange に受け取った記録があればその日時と場面を出す。
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { listOwnRecords } from '../api/binder.ts'
+import { firstLine, getProfile, type Profile } from '../api/profile.ts'
 import { deleteSticker, getStickerByRkey } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
+import Avatar from '../components/Avatar.tsx'
 import Handle from '../components/Handle.tsx'
 import StickerImage, { StickerBackdrop } from '../components/StickerImage.tsx'
-import { NSID, type Exchange, type StrongRef, type Sticker } from '../lexicon-types.ts'
+import { NSID, type Did, type Exchange, type StrongRef, type Sticker } from '../lexicon-types.ts'
 
 type State = { status: 'loading' } | { status: 'gone' } | { status: 'ok'; ref: StrongRef; sticker: Sticker }
 
@@ -21,9 +24,76 @@ function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}月${d.getDate()}日`
+const muted = { color: 'var(--color-text-muted)', fontSize: 'var(--font-size-md)' }
+const oneLine = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const
+
+type ProfileState = { status: 'loading' } | { status: 'failed' } | { status: 'ok'; profile: Profile }
+
+/** ③ 作った人のプロフィールカード。読めないときはハンドルか DID だけを出す */
+function ProfileCard({ did }: { did: Did }) {
+  const [loaded, setLoaded] = useState<{ did: Did; state: ProfileState }>()
+  const state: ProfileState = loaded?.did === did ? loaded.state : { status: 'loading' }
+
+  useEffect(() => {
+    let cancelled = false
+    getProfile(did)
+      .then((profile) => !cancelled && setLoaded({ did, state: { status: 'ok', profile } }))
+      .catch(() => !cancelled && setLoaded({ did, state: { status: 'failed' } }))
+    return () => {
+      cancelled = true
+    }
+  }, [did])
+
+  const profile = state.status === 'ok' ? state.profile : undefined
+  const bio = firstLine(profile?.description)
+
+  return (
+    <section className="card" aria-busy={state.status === 'loading'} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+      {state.status === 'loading' ? (
+        <span className="avatar" style={{ width: 48, height: 48, background: 'var(--color-surface-muted)' }} />
+      ) : profile?.avatar ? (
+        <img src={profile.avatar} alt="" width={48} height={48} style={{ flex: 'none', borderRadius: '50%', objectFit: 'cover' }} />
+      ) : (
+        <Avatar did={did} size={48} />
+      )}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        {state.status === 'loading' && (
+          <div style={{ height: 14, width: '60%', borderRadius: 'var(--radius-xs)', background: 'var(--color-surface-muted)' }} />
+        )}
+        {state.status === 'failed' && (
+          <p style={{ margin: 0, fontWeight: 'var(--font-weight-bold)', ...oneLine }}>
+            <Handle did={did} />
+          </p>
+        )}
+        {profile && (
+          <>
+            <p style={{ margin: 0, fontWeight: 'var(--font-weight-bold)', ...oneLine }}>{profile.displayName || `@${profile.handle}`}</p>
+            <p style={{ margin: 0, ...muted, ...oneLine }}>@{profile.handle}</p>
+            {bio && <p style={{ margin: 'var(--space-1) 0 0', ...oneLine }}>{bio}</p>}
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
+
+/** ④ 交換の記録カード。もらったピクルスのときだけ出す */
+function ExchangeCard({ exchange }: { exchange: Exchange }) {
+  return (
+    <section className="card">
+      <p style={{ margin: '0 0 var(--space-2)', fontWeight: 'var(--font-weight-bold)' }}>交換の記録</p>
+      <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 'var(--space-1) var(--space-3)', margin: 0 }}>
+        <dt style={muted}>日時</dt>
+        <dd style={{ margin: 0 }}>{formatDateTime(exchange.createdAt)}</dd>
+        {exchange.occasion && (
+          <>
+            <dt style={muted}>場所</dt>
+            <dd style={{ margin: 0 }}>{exchange.occasion}</dd>
+          </>
+        )}
+      </dl>
+    </section>
+  )
 }
 
 export default function StickerDetail() {
@@ -57,7 +127,16 @@ export default function StickerDetail() {
     if (!agent || !myDid || !stickerUri) return
     let cancelled = false
     listOwnRecords<Exchange>(agent, myDid, NSID.exchange)
-      .then((records) => !cancelled && setExchanges(records.map((r) => r.value).filter((x) => x.received?.uri === stickerUri)))
+      .then(
+        (records) =>
+          !cancelled &&
+          setExchanges(
+            records
+              .map((r) => r.value)
+              .filter((x) => x.received?.uri === stickerUri)
+              .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+          ),
+      )
       .catch(() => {})
     return () => {
       cancelled = true
@@ -66,7 +145,7 @@ export default function StickerDetail() {
 
   async function onDelete() {
     if (!agent || !myDid || state.status !== 'ok') return
-    if (!window.confirm('このステッカーを削除しますか？\nタイムラインと、交換した相手のシール帳からも消えます。')) return
+    if (!window.confirm('このピクルスを削除しますか？\nタイムラインと、交換した相手のシール帳からも消えます。')) return
     setDeleting(true)
     setDeleteError(undefined)
     try {
@@ -86,25 +165,25 @@ export default function StickerDetail() {
       </button>
 
       {state.status === 'loading' && <p>読み込み中…</p>}
-      {state.status === 'gone' && <p style={{ marginTop: 48, textAlign: 'center' }}>このステッカーは削除されました</p>}
+      {state.status === 'gone' && <p style={{ marginTop: 48, textAlign: 'center' }}>このピクルスは削除されました</p>}
       {state.status === 'ok' && (
         <>
           <div style={{ margin: '16px 0' }}>
             <StickerImage did={did} sticker={state.sticker} maxHeight={360} />
           </div>
-          <p style={{ fontWeight: 'bold', margin: '0 0 4px' }}>
-            <Handle did={did} />
-          </p>
-          <p style={{ margin: '0 0 4px', color: '#666', fontSize: 14 }}>
+          {state.sticker.caption && (
+            <p style={{ margin: '0 0 var(--space-1)', fontWeight: 'var(--font-weight-bold)', textAlign: 'center' }}>{state.sticker.caption}</p>
+          )}
+          <p style={{ margin: '0 0 var(--space-4)', textAlign: 'center', ...muted }}>
             {formatDateTime(state.sticker.createdAt)}・{state.sticker.source === 'photo' ? '写真' : 'イラスト'}
           </p>
-          {state.sticker.caption && <p style={{ margin: '8px 0' }}>{state.sticker.caption}</p>}
 
-          {exchanges.map((x) => (
-            <p key={x.sessionId} style={{ margin: '8px 0', fontSize: 14 }}>
-              <Handle did={x.partner} /> さんと {formatDate(x.createdAt)} に交換{x.occasion ? `（場面：${x.occasion}）` : ''}
-            </p>
-          ))}
+          <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+            <ProfileCard did={did} />
+            {exchanges.map((x) => (
+              <ExchangeCard key={x.sessionId} exchange={x} />
+            ))}
+          </div>
 
           {myDid === did && (
             <div style={{ marginTop: 24 }}>
