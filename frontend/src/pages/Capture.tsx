@@ -60,7 +60,7 @@ export default function Capture() {
       setCaption('')
       setStep({ kind: 'preview', source, result, png: base64ToPng(result.image) })
     } catch (err) {
-      setError(`ステッカーにできませんでした：${errorMessage(err)}`)
+      setError(`ピクルスにできませんでした：${errorMessage(err)}`)
       setStep({ kind: 'choose' })
     }
   }
@@ -95,9 +95,9 @@ export default function Capture() {
   if (step.kind === 'cutting') {
     return (
       <>
-        <PageHeader title="ステッカー作成" />
+        <PageHeader title="ピクルス作成" />
         <div className="capture-viewer">
-          <p role="status">ステッカーにしています…</p>
+          <p role="status">ピクルスにしています…</p>
         </div>
         <BackendWaking />
       </>
@@ -117,7 +117,7 @@ export default function Capture() {
           <h1>プレビュー</h1>
         </div>
         <div className="capture-image">
-          <img src={`data:image/png;base64,${step.result.image}`} alt="できたステッカー" />
+          <img src={`data:image/png;base64,${step.result.image}`} alt="できたピクルス" />
         </div>
         <div className="capture-tags">
           <span className={step.source === 'photo' ? 'tag' : 'tag tag-illustration'}>{step.source === 'photo' ? '写真' : 'イラスト'}</span>
@@ -134,7 +134,7 @@ export default function Capture() {
         <div className="notice capture-notice">
           <img src="/images/globe.svg" alt="" width={18} height={18} />
           <div>
-            <p className="notice-title">このステッカーは公開されます</p>
+            <p className="notice-title">このピクルスは公開されます</p>
             <p>Blueskyのアカウントを持つ人なら誰でも見られます</p>
           </div>
           <label className="capture-confirm">
@@ -153,7 +153,7 @@ export default function Capture() {
 
   return (
     <>
-      <PageHeader title="ステッカー作成" />
+      <PageHeader title="ピクルス作成" />
       <div className="segmented capture-modes">
         <button type="button" aria-pressed={mode === 'camera'} className={mode === 'camera' ? 'active' : undefined} onClick={() => setMode('camera')}>
           撮影
