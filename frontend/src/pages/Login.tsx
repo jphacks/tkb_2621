@@ -5,6 +5,15 @@ import { ProfileAvatar } from '../components/Profile.tsx'
 import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 
+function LegalLinks({ className }: { className: string }) {
+  return (
+    <p className={className}>
+      <Link to="/terms">利用規約</Link>
+      <Link to="/privacy">プライバシーポリシー</Link>
+    </p>
+  )
+}
+
 export default function Login() {
   const auth = useAuth()
   const [submitting, setSubmitting] = useState(false)
@@ -33,6 +42,7 @@ export default function Login() {
         <button type="button" className="btn btn-block account-action" onClick={() => auth.signOut()}>
           ログアウト
         </button>
+        <LegalLinks className="account-legal" />
       </>
     )
   }
@@ -81,6 +91,7 @@ export default function Login() {
             {error ?? auth.error}
           </p>
         )}
+        <LegalLinks className="login-legal" />
       </div>
     </div>
   )

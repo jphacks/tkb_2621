@@ -1,4 +1,5 @@
 import { Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import ConsentGate, { useNeedsConsent } from './components/ConsentGate.tsx'
 import PageHeader from './components/PageHeader.tsx'
 import TabBar from './components/TabBar.tsx'
 import Login from './pages/Login.tsx'
@@ -14,6 +15,8 @@ import Field from './pages/Field.tsx'
 import FieldJoin from './pages/FieldJoin.tsx'
 import Tutorial from './pages/Tutorial.tsx'
 import OAuthCallback from './pages/OAuthCallback.tsx'
+import Terms from './pages/Terms.tsx'
+import Privacy from './pages/Privacy.tsx'
 
 // 上のヘッダーに出す画面名。ここにない画面（交換・ステッカー詳細）はヘッダーを出さない
 function headerTitle(pathname: string): string | undefined {
@@ -25,16 +28,19 @@ function headerTitle(pathname: string): string | undefined {
   return undefined
 }
 
-// ヘッダーとタブはスクロールの外に置き、いつも画面の上下に出しておく
+// ヘッダーとタブはスクロールの外に置き、いつも画面の上下に出しておく。同意の画面を出している間はどちらも隠す
 function TabLayout() {
   const title = headerTitle(useLocation().pathname)
+  const needsConsent = useNeedsConsent()
   return (
     <>
-      {title && <PageHeader title={title} />}
+      {title && !needsConsent && <PageHeader title={title} />}
       <main className="page">
-        <Outlet />
+        <ConsentGate>
+          <Outlet />
+        </ConsentGate>
       </main>
-      <TabBar />
+      {!needsConsent && <TabBar />}
     </>
   )
 }
@@ -45,6 +51,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<main className="page"><Login /></main>} />
         <Route path="/oauth/callback" element={<main className="page"><OAuthCallback /></main>} />
+        <Route path="/terms" element={<main className="page"><Terms /></main>} />
+        <Route path="/privacy" element={<main className="page"><Privacy /></main>} />
         <Route element={<TabLayout />}>
           <Route path="/" element={<Timeline />} />
           <Route path="/capture" element={<Capture />} />
