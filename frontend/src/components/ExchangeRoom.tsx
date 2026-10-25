@@ -211,7 +211,7 @@ export default function ExchangeRoom(props: {
     const { selected: gave, partnerRef: received } = latest.current
     const note = latest.current.message.trim()
     if (!gave || !received) {
-      setPhase({ kind: 'failed', reason: '選んだステッカーが分からなくなりました' })
+      setPhase({ kind: 'failed', reason: '選んだピクルスが分からなくなりました' })
       return
     }
     setPhase({ kind: 'recording' })
@@ -327,8 +327,8 @@ export default function ExchangeRoom(props: {
     return (
       <div className="exchange-done">
         <h1>交換成立!</h1>
-        {partnerImage && <img src={partnerImage} alt="受け取ったステッカー" width={IMAGE_SIZE * 2} className="exchange-done-image" />}
-        <p>{partnerHandle ? `@${partnerHandle}` : partner}とステッカーを交換しました</p>
+        {partnerImage && <img src={partnerImage} alt="受け取ったピクルス" width={IMAGE_SIZE * 2} className="exchange-done-image" />}
+        <p>{partnerHandle ? `@${partnerHandle}` : partner}とピクルスを交換しました</p>
         <p className="exchange-done-meta">
           {shownOccasion && <span className="tag tag-place">{shownOccasion}</span>}
           {phase.exchange && <span>{formatDateTime(phase.exchange.createdAt)}</span>}
@@ -432,16 +432,16 @@ export default function ExchangeRoom(props: {
           <span className="exchange-hint">{partnerRef ? '相手はこの1枚を選びました' : '相手が選ぶのを待っています…'}</span>
         </div>
         <div className="exchange-partner-pick">
-          {partnerRef && (partnerImage ? <img src={partnerImage} alt="相手が選んだステッカー" /> : <span className="text-muted">読み込み中…</span>)}
+          {partnerRef && (partnerImage ? <img src={partnerImage} alt="相手が選んだピクルス" /> : <span className="text-muted">読み込み中…</span>)}
         </div>
       </div>
 
-      <h2 className="exchange-mine-title">あなたのステッカー</h2>
-      {loadError && <p role="alert">ステッカーを読めませんでした：{loadError}</p>}
+      <h2 className="exchange-mine-title">あなたのピクルス</h2>
+      {loadError && <p role="alert">ピクルスを読めませんでした：{loadError}</p>}
       {!myStickers && !loadError && <p className="text-muted">読み込み中…</p>}
       {myStickers?.length === 0 && (
         <p>
-          ステッカーがありません。<Link to="/capture">撮影する</Link>
+          ピクルスがありません。<Link to="/capture">撮影する</Link>
         </p>
       )}
       <div className="exchange-mine">
@@ -457,7 +457,7 @@ export default function ExchangeRoom(props: {
               disabled={confirmed}
               aria-pressed={isSelected}
             >
-              <img src={item.imageUrl} alt={item.sticker.caption ?? 'ステッカー'} width={IMAGE_SIZE} height={IMAGE_SIZE} />
+              <img src={item.imageUrl} alt={item.sticker.caption ?? 'ピクルス'} width={IMAGE_SIZE} height={IMAGE_SIZE} />
               {wanted && <span className="tag exchange-wanted">♥ 相手がほしい</span>}
               {isSelected && (
                 <span className="exchange-check" aria-hidden="true">
@@ -468,7 +468,7 @@ export default function ExchangeRoom(props: {
           )
         })}
       </div>
-      <p className="exchange-hint">渡せるのは自分で作ったステッカーだけです</p>
+      <p className="exchange-hint">渡せるのは自分で作ったピクルスだけです</p>
 
       <label className="exchange-occasion exchange-message-input">
         相手にひとこと（任意）

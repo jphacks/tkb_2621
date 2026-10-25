@@ -80,7 +80,7 @@ function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did 
               <span>
                 <Handle did={item.author} />の
                 <br />
-                新しいステッカー
+                新しいピクルス
               </span>
             </span>
             {item.record.caption && <span className="timeline-caption">{item.record.caption}</span>}
@@ -166,7 +166,7 @@ export default function Timeline() {
   return (
     <>
       <PageHeader title="タイムライン" />
-      {done && shown.length === 0 && <p style={{ marginTop: 48, textAlign: 'center' }}>交換すると、相手の新しいステッカーがここに流れます</p>}
+      {done && shown.length === 0 && <p style={{ marginTop: 48, textAlign: 'center' }}>交換すると、相手の新しいピクルスがここに流れます</p>}
       <div className="timeline">
         {shown.map((item) => (
           <Event key={item.uri} item={item} agent={agent} me={auth.did} />

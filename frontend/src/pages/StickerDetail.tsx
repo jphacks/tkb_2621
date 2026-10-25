@@ -167,7 +167,7 @@ export default function StickerDetail() {
 
   async function onDelete() {
     if (!agent || !myDid || state.status !== 'ok') return
-    if (!window.confirm('このピクルスを削除しますか？\nタイムラインと、交換した相手のシール帳からも消えます。')) return
+    if (!window.confirm('このピクルスを削除しますか？\nタイムラインと、交換した相手のビンからも消えます。')) return
     setDeleting(true)
     setDeleteError(undefined)
     try {

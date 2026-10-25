@@ -282,12 +282,12 @@ export default function Binder() {
           </button>
         )}
         <div className="binder-hand-header">
-          <h2 className="section-title">手持ちのステッカー</h2>
+          <h2 className="section-title">手持ちのピクルス</h2>
           {owned && owned.length > 0 && <span className="binder-hand-hint">{owned.length}枚・タップして貼る・長押しで詳しく</span>}
         </div>
         {ownedError && <p role="alert">手持ちを読めませんでした：{ownedError}</p>}
         {!owned && !ownedError && <p className="text-muted">読み込み中…</p>}
-        {owned?.length === 0 && <p className="text-muted">まだステッカーがありません</p>}
+        {owned?.length === 0 && <p className="text-muted">まだピクルスがありません</p>}
         <div className="binder-hand">
           {owned?.map((sticker) => (
             <button
@@ -303,7 +303,7 @@ export default function Binder() {
               onContextMenu={(e) => e.preventDefault()}
               disabled={!items}
             >
-              <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ステッカー'} width={THUMB_SIZE} height={THUMB_SIZE} draggable={false} />
+              <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ピクルス'} width={THUMB_SIZE} height={THUMB_SIZE} draggable={false} />
               {/* 交換でもらったものには、くれた人のアイコンを付ける */}
               {sticker.owner !== did && (
                 <span className="binder-hand-owner">

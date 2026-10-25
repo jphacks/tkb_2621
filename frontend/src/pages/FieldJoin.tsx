@@ -79,7 +79,7 @@ export default function FieldJoin() {
       ) : (
         <>
           <p>「{field.title}」に招待されています。</p>
-          <p>参加すると、自分のステッカーをここに貼れます。</p>
+          <p>参加すると、自分のピクルスをここに貼れます。</p>
           <button type="button" onClick={onJoin} disabled={joining}>
             {joining ? '参加しています…' : '参加する'}
           </button>

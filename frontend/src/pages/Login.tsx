@@ -44,9 +44,9 @@ export default function Login() {
       </h1>
       <p className="login-tagline">dip, pick, share.</p>
       <p className="login-lead">
-        あなたの思い出がステッカーに。
+        あなたの思い出がピクルスに。
         <br />
-        交換したステッカーを、
+        交換したピクルスを、
         <br />
         互いのスマホに残していつまでも。
       </p>
