@@ -1713,3 +1713,7 @@ label:focus-within:has(> .visually-hidden) {
 .field-invite-error {
   margin-top: var(--space-3);
 }
+
+.profile-avatar {
+  object-fit: cover;
+}

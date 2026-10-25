@@ -5,11 +5,10 @@ import { Link, Navigate } from 'react-router-dom'
 import { getTimeline, type TimelineItem } from '../api/backend.ts'
 import { getSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
-import Avatar from '../components/Avatar.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
-import Handle from '../components/Handle.tsx'
 import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
+import { DisplayName, ProfileAvatar } from '../components/Profile.tsx'
 import StickerImage from '../components/StickerImage.tsx'
 import WantButton from '../components/WantButton.tsx'
 import type { Did, Sticker, StrongRef } from '../lexicon-types.ts'
@@ -77,9 +76,9 @@ function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did 
         <div className="timeline-body">
           <Link to={path} className="timeline-link">
             <span className="timeline-who">
-              <Avatar did={item.author} />
+              <ProfileAvatar did={item.author} />
               <span>
-                <Handle did={item.author} />の
+                <DisplayName did={item.author} />の
                 <br />
                 新しいピクルス
               </span>
@@ -98,10 +97,10 @@ function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did 
   return (
     <article className="card timeline-exchange">
       <span className="timeline-who timeline-who-lg">
-        <Avatar did={item.author} size={30} />
+        <ProfileAvatar did={item.author} size={30} />
         <span>
           <span className="timeline-exchange-title">
-            <Handle did={item.author} /> が <Handle did={item.record.partner} /> と交換しました
+            <DisplayName did={item.author} /> が <DisplayName did={item.record.partner} /> と交換しました
           </span>
           <span className="text-muted">{formatRelative(item.createdAt)}</span>
         </span>
