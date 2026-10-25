@@ -2,7 +2,7 @@
 import { AtUri, type Agent } from '@atproto/api'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import Avatar from './Avatar.tsx'
+import { ProfileAvatar } from './Profile.tsx'
 import Loading from './Loading.tsx'
 import {
   commitExchange,
@@ -435,7 +435,7 @@ export default function ExchangeRoom(props: {
       <div className="card exchange-partner">
         <div className="exchange-partner-info">
           <span className="exchange-partner-name">
-            {partnerDid && <Avatar did={partnerDid} size={31} />}
+            {partnerDid && <ProfileAvatar did={partnerDid} size={31} />}
             {partnerHandle ? `@${partnerHandle}` : (partnerDid ?? '参加しました')}
           </span>
           <span className="exchange-hint">{partnerRef ? '相手はこの1枚を選びました' : '相手が選ぶのを待っています…'}</span>
