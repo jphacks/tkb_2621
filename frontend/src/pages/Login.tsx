@@ -1,10 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.tsx'
 
 export default function Login() {
   const auth = useAuth()
-  const [handle, setHandle] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -37,13 +36,6 @@ export default function Login() {
     }
   }
 
-  // ハンドルが空なら bsky.social のログイン画面へ、入っていればそのハンドルのサーバーへ
-  function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    const input = handle.trim().replace(/^@/, '')
-    void signIn(input || 'https://bsky.social')
-  }
-
   return (
     <div className="login">
       <h1 className="login-logo">
@@ -62,19 +54,14 @@ export default function Login() {
         <img src="/images/login-sticker-1.png" alt="" width={145} height={145} />
         <img src="/images/login-sticker-2.png" alt="" width={149} height={150} />
       </div>
-      <form className="login-form" onSubmit={onSubmit}>
-        <input
-          type="text"
-          className="input login-input"
-          value={handle}
-          onChange={(e) => setHandle(e.target.value)}
-          placeholder="example.bsky.social"
-          aria-label="ハンドル（空のままなら bsky.social でログイン）"
-          autoCapitalize="none"
-          autoCorrect="off"
-          autoComplete="username"
-        />
-        <button type="submit" className="login-primary" disabled={submitting}>
+      {/* IDとパスワードは bsky.social の認可画面で入れてもらう */}
+      <div className="login-form">
+        <button
+          type="button"
+          className="login-primary"
+          disabled={submitting}
+          onClick={() => void signIn('https://bsky.social')}
+        >
           Blueskyでログイン
         </button>
         {(error ?? auth.error) && (
@@ -82,7 +69,7 @@ export default function Login() {
             {error ?? auth.error}
           </p>
         )}
-      </form>
+      </div>
     </div>
   )
 }

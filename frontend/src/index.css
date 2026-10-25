@@ -16,8 +16,6 @@
   --color-border-input: rgba(0, 0, 0, 0.15);
   --color-login-from: #f2b53a;
   --color-login-to: #f7e694;
-  --color-border-login: #c7c7c7;
-  --color-placeholder: #6f6f6f;
   --color-notice-bg: #fff6e0;
   --color-notice-border: rgba(66, 52, 0, 0.15);
   --color-notice-title: #5c3800;
@@ -248,16 +246,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-}
-
-.login-input {
-  padding: var(--space-2) 9px;
-  border-color: var(--color-border-login);
-  border-radius: var(--radius-xs);
-}
-
-.login-input::placeholder {
-  color: var(--color-placeholder);
 }
 
 .login-primary {
