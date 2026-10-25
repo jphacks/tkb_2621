@@ -2,13 +2,16 @@
 
 import asyncio
 import logging
+import secrets
+import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import pds
 from .auth import require_did
@@ -22,9 +25,41 @@ router = APIRouter()
 FIELD_COLLECTION = "com.kosora623.pikkles.field"
 CONNECT_TIMEOUT_SECONDS = 10
 
+# 招待（QR とコード）は10分で失効する。交換の QR と同じくメモリに持つ（Render は1台。消えたら出し直せば済む）
+INVITE_SECONDS = 600
+# 残りがこれより長ければ、同じフィールドには同じコードを返す（メンバーが別々に出しても同じコードになる）
+INVITE_REUSE_MIN_SECONDS = 120
+# 読み間違えやすい 0 O 1 I L を除く。31文字の6桁で約9億通り
+INVITE_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+INVITE_CODE_LENGTH = 6
+# 総当たり対策。違うコードをこの回数送った人は、しばらく断る
+INVITE_FAILURE_LIMIT = 10
+INVITE_FAILURE_WINDOW_SECONDS = 600
+
+INVITE_INVALID = "招待コードが違うか、期限が切れています。メンバーに QR かコードを出し直してもらってください"
+
 
 class JoinFieldRequest(BaseModel):
     field: StrongRef
+    code: str | None = None  # 招待コード。すでにメンバーの人と作った人は無くてよい
+
+
+class FieldInviteRequest(BaseModel):
+    field: StrongRef
+
+
+class FieldInviteResponse(BaseModel):
+    code: str
+    expiresIn: int  # 秒
+
+
+class FieldInviteLookupResponse(BaseModel):
+    field: StrongRef
+    expiresIn: int  # 秒
+
+
+class FieldInviteLookupRequest(BaseModel):
+    code: str = Field(max_length=32)
 
 
 class FieldMembersResponse(BaseModel):
@@ -183,6 +218,52 @@ store = _PostgresStore(DATABASE_URL) if DATABASE_URL else _MemoryStore()
 _join_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
+@dataclass
+class _Invite:
+    field: StrongRef
+    expires_at: float  # time.monotonic()
+
+
+_invites: dict[str, _Invite] = {}  # コード → 招待
+_invite_failures: defaultdict[str, list[float]] = defaultdict(list)  # DID → 違うコードを送った時刻
+
+
+def _sweep_invites(now: float) -> None:
+    for code in [c for c, inv in _invites.items() if inv.expires_at <= now]:
+        del _invites[code]
+
+
+def _drop_invites(field_uri: str) -> None:
+    for code in [c for c, inv in _invites.items() if inv.field.uri == field_uri]:
+        del _invites[code]
+
+
+def normalize_invite_code(text: str) -> str:
+    """大文字にし、空白やハイフンを除く（「abc-123」も「ABC 123」も通す）。"""
+    return "".join(ch for ch in text.upper() if ch.isalnum())
+
+
+def _check_invite_failures(did: str, now: float) -> None:
+    recent = [t for t in _invite_failures[did] if t > now - INVITE_FAILURE_WINDOW_SECONDS]
+    if recent:
+        _invite_failures[did] = recent
+    else:
+        _invite_failures.pop(did, None)
+    if len(recent) >= INVITE_FAILURE_LIMIT:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "コードを何度も間違えました。10分ほどあけてから試してください")
+
+
+def _invite_failed(did: str, now: float) -> HTTPException:
+    _invite_failures[did].append(now)
+    logger.info("field invite: wrong code from %s (%d)", did, len(_invite_failures[did]))
+    return HTTPException(status.HTTP_403_FORBIDDEN, INVITE_INVALID)
+
+
+def _find_invite(code: str, now: float) -> _Invite | None:
+    invite = _invites.get(normalize_invite_code(code))
+    return invite if invite and invite.expires_at > now else None
+
+
 async def co_members(did: str) -> set[str]:
     """did が入っているフィールドの、did 以外のメンバー。"""
     return await store.co_members(did)
@@ -211,6 +292,8 @@ def _field_creator(uri: str) -> str:
 async def join_field(body: JoinFieldRequest, did: str = Depends(require_did)) -> FieldMembersResponse:
     uri = body.field.uri
     creator = _field_creator(uri)
+    if body.code is not None:
+        _check_invite_failures(did, time.monotonic())
     async with _unavailable_as_503():
         if await store.is_closed(uri):
             raise HTTPException(status.HTTP_410_GONE, "このフィールドは閉じています")
@@ -229,6 +312,14 @@ async def join_field(body: JoinFieldRequest, did: str = Depends(require_did)) ->
         members = await store.members(uri)
         if did in members:
             return FieldMembersResponse(members=members)
+        # まだメンバーでない人は、期限内の招待コードが要る（作った人は要らない）
+        if did != creator:
+            now = time.monotonic()
+            invite = _find_invite(body.code, now) if body.code else None
+            if invite is None or invite.field.uri != uri:
+                if body.code:
+                    raise _invite_failed(did, now)
+                raise HTTPException(status.HTTP_403_FORBIDDEN, INVITE_INVALID)
         # 作った人もメンバーにする（作った人が先）
         others = [m for m in dict.fromkeys([creator, *members]) if m != did]
         try:
@@ -243,6 +334,42 @@ async def join_field(body: JoinFieldRequest, did: str = Depends(require_did)) ->
             await store.add(uri, creator)
         await store.add(uri, did)
         return FieldMembersResponse(members=await store.members(uri))
+
+
+@router.post("/fields/invite")
+async def create_invite(body: FieldInviteRequest, did: str = Depends(require_did)) -> FieldInviteResponse:
+    """メンバーが招待コードを出す。QR にも同じコードを載せる。"""
+    uri = body.field.uri
+    creator = _field_creator(uri)
+    async with _join_locks[uri], _unavailable_as_503():
+        if await store.is_closed(uri):
+            raise HTTPException(status.HTTP_410_GONE, "このフィールドは閉じています")
+        members = await store.members(uri)
+    if did not in members and not (not members and did == creator):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "メンバーだけが招待できます")
+
+    now = time.monotonic()
+    _sweep_invites(now)
+    for code, invite in _invites.items():
+        if invite.field.uri == uri and invite.field.cid == body.field.cid and invite.expires_at - now > INVITE_REUSE_MIN_SECONDS:
+            return FieldInviteResponse(code=code, expiresIn=int(invite.expires_at - now))
+    while True:
+        code = "".join(secrets.choice(INVITE_CODE_ALPHABET) for _ in range(INVITE_CODE_LENGTH))
+        if code not in _invites:
+            break
+    _invites[code] = _Invite(field=body.field, expires_at=now + INVITE_SECONDS)
+    return FieldInviteResponse(code=code, expiresIn=INVITE_SECONDS)
+
+
+@router.post("/fields/invite/lookup")
+async def lookup_invite(body: FieldInviteLookupRequest, did: str = Depends(require_did)) -> FieldInviteLookupResponse:
+    """招待コードから、どのフィールドかを返す（参加の前にタイトルを見せるため）。参加は /fields/join で。"""
+    now = time.monotonic()
+    _check_invite_failures(did, now)
+    invite = _find_invite(body.code, now)
+    if invite is None:
+        raise _invite_failed(did, now)
+    return FieldInviteLookupResponse(field=invite.field, expiresIn=int(invite.expires_at - now))
 
 
 @router.get("/fields/members")
@@ -261,6 +388,7 @@ async def leave_field(uri: str = Query(...), did: str = Depends(require_did)) ->
         members = await store.members(uri)
         if removed and not members:
             await store.close_field(uri)
+            _drop_invites(uri)
         return FieldStateResponse(members=members, closed=await store.is_closed(uri))
 
 
@@ -272,4 +400,5 @@ async def delete_field(uri: str = Query(...), did: str = Depends(require_did)) -
     async with _join_locks[uri], _unavailable_as_503():
         await store.remove_all(uri)
         await store.close_field(uri)
+    _drop_invites(uri)
     return {"ok": True}

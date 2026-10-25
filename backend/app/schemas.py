@@ -106,13 +106,6 @@ class TimelineResponse(BaseModel):
     cursor: Optional[str] = None
 
 
-# ---- POST /fields/{id}/invite ----
-
-
-class InviteResponse(BaseModel):
-    inviteUrl: str
-
-
 # ---- WS /exchange/sessions/{id}/ws ----
 # → クライアントから
 

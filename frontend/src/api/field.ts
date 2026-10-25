@@ -42,9 +42,26 @@ export function fieldPath(field: Pick<StrongRef, 'uri'>): string {
   return `/fields/${encodeURIComponent(at.host)}/${encodeURIComponent(at.rkey)}`
 }
 
-/** 招待 QR の中身。開くと FieldJoin.tsx */
-export function inviteUrl(field: StrongRef): string {
-  return `${window.location.origin}/fields/join?${new URLSearchParams({ uri: field.uri, cid: field.cid })}`
+/** 招待コードの文字数（backend/app/fields.py の INVITE_CODE_LENGTH） */
+export const INVITE_CODE_LENGTH = 6
+
+/** 大文字にし、空白やハイフンを除く（サーバーの normalize_invite_code と同じ） */
+export function normalizeInviteCode(text: string): string {
+  return text.toUpperCase().replace(/[^0-9A-Z]/g, '')
+}
+
+/** 読み上げやすいように3文字ずつに分ける（ABC 123） */
+export function formatInviteCode(code: string): string {
+  return code.replace(/^(.{3})(.+)$/, '$1 $2')
+}
+
+/** 招待 QR の中身。開くと FieldJoin.tsx。コードを手で入れたときも同じ URL を開く */
+export function inviteUrl(code: string): string {
+  return `${window.location.origin}${invitePathForCode(code)}`
+}
+
+export function invitePathForCode(code: string): string {
+  return `/fields/join?${new URLSearchParams({ code: normalizeInviteCode(code) })}`
 }
 
 // ---- 参加 ----

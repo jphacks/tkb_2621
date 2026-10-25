@@ -2,17 +2,18 @@
 // 手持ちのステッカー（自分のもの＋成立した交換で受け取ったもの）を貼れ、動かし終わって1秒たったら自分の field.placement を書き直す。
 // 他のメンバーの貼り付け・移動・削除は Jetstream（api/fieldLive.ts）でその場に反映する。
 // 自分の貼り付けは選んで角の × で消せる。作った人は「フィールドを削除」、それ以外は「抜ける」。
-import { AtUri } from '@atproto/api'
+import { AtUri, type Agent } from '@atproto/api'
 import QRCode from 'qrcode'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { BackendError, getFieldMembers, joinField } from '../api/backend.ts'
+import { BackendError, createFieldInvite, getFieldMembers, joinField } from '../api/backend.ts'
 import { centerPlacement, listOwnedStickers, type OwnedSticker } from '../api/binder.ts'
 import {
   FieldDeletedError,
   createFieldPlacement,
   deleteField,
   deleteFieldPlacement,
+  formatInviteCode,
   getField,
   inviteUrl,
   isMember,
@@ -34,7 +35,7 @@ import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import Loading from '../components/Loading.tsx'
 import { DisplayName, ProfileAvatar } from '../components/Profile.tsx'
 import WantButton from '../components/WantButton.tsx'
-import { NSID, PLACEMENT_LIMITS, type Did, type FieldPlacement, type Placement } from '../lexicon-types.ts'
+import { NSID, PLACEMENT_LIMITS, type Did, type FieldPlacement, type Placement, type StrongRef } from '../lexicon-types.ts'
 
 const SAVE_DELAY_MS = 1000
 // Jetstream の取りこぼし（切れていたあいだ・署名を確かめていない中身）を PDS から読み直して正す間隔
@@ -70,6 +71,62 @@ function QrCode({ url }: { url: string }) {
   }, [url])
   if (!dataUrl) return <p>QR を作っています…</p>
   return <img src={dataUrl} alt="招待用の QR コード" className="exchange-qr-image" />
+}
+
+/** 招待 QR とコード。開いているあいだサーバーに出してもらい、切れたら出し直す。QR とコードは同じもの */
+function InviteCard({ agent, field }: { agent: Agent; field: StrongRef }) {
+  const [invite, setInvite] = useState<{ code: string; expiresAt: number }>()
+  const [inviteError, setInviteError] = useState<string>()
+  const [retry, setRetry] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const expired = !invite || now >= invite.expiresAt
+  const { uri, cid } = field
+  useEffect(() => {
+    if (!expired) return
+    let cancelled = false
+    createFieldInvite(agent, { uri, cid })
+      .then((res) => {
+        if (cancelled) return
+        setInvite({ code: res.code, expiresAt: Date.now() + res.expiresIn * 1000 })
+        setInviteError(undefined)
+      })
+      .catch((e: unknown) => !cancelled && setInviteError(errorMessage(e)))
+    return () => {
+      cancelled = true
+    }
+  }, [agent, uri, cid, expired, retry])
+
+  const remaining = invite ? Math.max(0, Math.ceil((invite.expiresAt - now) / 1000)) : 0
+  return (
+    <div className="card exchange-qr field-invite">
+      <p>招待 QR とコード</p>
+      {invite && !expired ? (
+        <>
+          <QrCode url={inviteUrl(invite.code)} />
+          <p className="field-invite-code">{formatInviteCode(invite.code)}</p>
+          <p className="text-muted">
+            カメラで QR を読むか、共同フィールド一覧の「コードで参加」に入れると参加できます。
+            {remaining > 60 ? `あと${Math.ceil(remaining / 60)}分有効` : `あと${remaining}秒で新しいコードに替わります`}
+          </p>
+        </>
+      ) : (
+        !inviteError && <p>招待を出しています…</p>
+      )}
+      {inviteError && (
+        <p role="alert">
+          招待を出せませんでした：{inviteError}{' '}
+          <button type="button" className="btn" onClick={() => setRetry((n) => n + 1)}>
+            もう一度
+          </button>
+        </p>
+      )}
+    </div>
+  )
 }
 
 function maxZ(list: FieldItem[]): number {
@@ -499,8 +556,6 @@ export default function Field() {
     locked: item.author !== me,
   }))
 
-  const joinPath = field ? `/fields/join?${new URLSearchParams({ uri: field.ref.uri, cid: field.ref.cid })}` : undefined
-
   const header = (
     <>
       <div className="back-header field-header">
@@ -590,7 +645,7 @@ export default function Field() {
           type="button"
           className="round-button"
           onClick={() => setShowInvite((v) => !v)}
-          disabled={!field}
+          disabled={!field || !member}
           aria-expanded={showInvite}
           aria-label={showInvite ? '招待 QR を閉じる' : '招待 QR を出す'}
         >
@@ -602,19 +657,11 @@ export default function Field() {
       {membersError && <small role="alert">メンバーの一部が読めませんでした（{membersError}）</small>}
       <BackendWaking />
 
-      {member === false && joinPath && (
-        <p className="notice">
-          まだ参加していません。<Link to={joinPath}>参加する</Link>
-        </p>
+      {member === false && (
+        <p className="notice">まだ参加していません。その場のメンバーに招待 QR かコードを出してもらうと参加できます</p>
       )}
 
-      {showInvite && field && (
-        <div className="card exchange-qr field-invite">
-          <p>招待 QR</p>
-          <QrCode url={inviteUrl(field.ref)} />
-          <p className="text-muted">iPhone のカメラで読むと参加できます</p>
-        </div>
-      )}
+      {showInvite && field && agent && member && <InviteCard agent={agent} field={field.ref} />}
 
       {/* タップした他人のピクルスの説明はキャンバスに重ねる（キャンバスの高さを減らさない） */}
       <div className="field-stage">

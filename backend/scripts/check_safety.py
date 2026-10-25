@@ -5,7 +5,7 @@ PDS に書くのはこのスクリプトだけ（サーバー本体は読むだ�
   2. #10 A がステッカーを削除すると、B の /timeline から消える（テスト用に1枚作って消す）
   3. #11 A が B をブロックすると join が 403、B の /timeline に A が出ない。最後にブロックを外す
   4. #8 位置情報付きの JPEG を /cutout に送ると、返る PNG にメタデータが無い
-  5. 共同フィールド: 抜ける／最後の1人が抜けると closed になり参加できない（410）／作った人だけが削除できる
+  5. 共同フィールド: 招待コードが無いと参加できない（403）／抜ける／最後の1人が抜けると closed になり参加できない（410）／作った人だけが削除できる
      （テスト用の field を A の PDS に作り、最後に消す）
 
 アカウントは fake_exchange.py と同じ（FAKE_A_*, FAKE_B_*。リポジトリ直下の .env も読む）。
@@ -184,8 +184,12 @@ def create_field(user: User, title: str) -> dict:
     return {"uri": res.uri, "cid": res.cid}
 
 
-def join_field(http: httpx.Client, user: User, field: dict) -> httpx.Response:
-    return http.post("/fields/join", json={"field": field}, headers=user.headers())
+def field_invite(http: httpx.Client, user: User, field: dict) -> str:
+    return check(http.post("/fields/invite", json={"field": field}, headers=user.headers()))["code"]
+
+
+def join_field(http: httpx.Client, user: User, field: dict, code: str | None = None) -> httpx.Response:
+    return http.post("/fields/join", json={"field": field, "code": code}, headers=user.headers())
 
 
 def field_state(http: httpx.Client, user: User, field: dict) -> dict:
@@ -200,7 +204,10 @@ def check_field_leave(http: httpx.Client, a: User, b: User) -> None:
     """抜ける・最後の1人が抜けると閉じる。テスト用の field は最後に消す。"""
     field = create_field(a, "check_safety 退出テスト")
     try:
-        joined = check(join_field(http, b, field))
+        check(join_field(http, a, field))
+        res = join_field(http, b, field)
+        record("招待コードが無いと参加できない（403）", res.status_code == 403, f"{res.status_code} {res.text[:200]}")
+        joined = check(join_field(http, b, field, field_invite(http, a, field)))
         if joined["members"] != [a.did, b.did]:
             record("フィールドから抜ける", False, f"join の members が {joined['members']}")
             return
@@ -227,7 +234,8 @@ def check_field_delete(http: httpx.Client, a: User, b: User) -> None:
     """作った人だけが削除できる。テスト用の field は最後に消す。"""
     field = create_field(a, "check_safety 削除テスト")
     try:
-        check(join_field(http, b, field))
+        check(join_field(http, a, field))
+        check(join_field(http, b, field, field_invite(http, a, field)))
         res = http.delete("/fields", params={"uri": field["uri"]}, headers=b.headers())
         record("作った人でなければフィールドを削除できない（403）", res.status_code == 403, f"{res.status_code} {res.text[:200]}")
 
