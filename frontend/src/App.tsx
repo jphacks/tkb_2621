@@ -11,7 +11,6 @@ import FieldList from './pages/FieldList.tsx'
 import Field from './pages/Field.tsx'
 import FieldJoin from './pages/FieldJoin.tsx'
 import OAuthCallback from './pages/OAuthCallback.tsx'
-import Debug from './pages/Debug.tsx'
 
 function TabLayout() {
   return (
@@ -30,7 +29,6 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<main className="page"><Login /></main>} />
         <Route path="/oauth/callback" element={<main className="page"><OAuthCallback /></main>} />
-        <Route path="/debug" element={<main className="page"><Debug /></main>} />
         <Route element={<TabLayout />}>
           <Route path="/" element={<Timeline />} />
           <Route path="/capture" element={<Capture />} />
