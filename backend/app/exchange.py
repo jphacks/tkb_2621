@@ -6,7 +6,7 @@ import secrets
 import time
 from dataclasses import dataclass, field
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from pydantic import TypeAdapter, ValidationError
 
 from . import pds
@@ -22,7 +22,6 @@ from .schemas import (
     ConfirmMessage,
     CreateSessionRequest,
     CreateSessionResponse,
-    ExchangesResponse,
     ExchangeView,
     JoinRequest,
     PartnerSelectedMessage,
@@ -74,8 +73,6 @@ class Session:
 
 
 _sessions: dict[str, Session] = {}
-# 成立した交換。DID → その人から見た交換（DB への保存は別の作業）
-_exchanges: dict[str, list[ExchangeView]] = {}
 
 
 def _new_join_url(session: Session) -> str:
@@ -268,7 +265,6 @@ async def commit(session_id: str, body: CommitRequest, did: str = Depends(requir
 
         session.status = "completed"
         for member, view in views.items():
-            _exchanges.setdefault(member, []).append(view)
             await _send(session, member, CompletedMessage(type="completed", exchange=view))
         logger.info("session %s completed", session.id)
         return CommitResponse(result="completed")
@@ -329,9 +325,3 @@ async def _verify(session: Session) -> tuple[dict[str, ExchangeView] | None, str
         for did, value in records.items()
     }
     return views, None
-
-
-@router.get("/exchanges")
-async def list_exchanges(did: str = Query(...)) -> ExchangesResponse:
-    exchanges = sorted(_exchanges.get(did, []), key=lambda e: e.createdAt, reverse=True)
-    return ExchangesResponse(exchanges=exchanges)

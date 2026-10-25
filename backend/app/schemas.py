@@ -71,7 +71,7 @@ class CommitResponse(BaseModel):
     reason: Optional[str] = None
 
 
-# ---- GET /exchanges?did= ----
+# ---- 成立した交換（WS の completed で送る） ----
 
 
 class ExchangeView(BaseModel):
@@ -83,10 +83,6 @@ class ExchangeView(BaseModel):
     gave: StrongRef
     received: StrongRef
     createdAt: str
-
-
-class ExchangesResponse(BaseModel):
-    exchanges: list[ExchangeView]
 
 
 # ---- GET /timeline?cursor=&limit= ----
