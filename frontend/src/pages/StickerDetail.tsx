@@ -1,8 +1,9 @@
 // S6 ピクルス詳細（docs/sticker-detail.md）。持ち主の PDS からステッカーを読み、作った人の Bluesky のプロフィールと、
-// 自分の PDS の exchange に受け取った記録があればその日時と場面を出す。
+// 自分の PDS の exchange に受け取った記録があればその日時と場面と、相手の記録にある一言を出す。
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { listOwnRecords } from '../api/binder.ts'
+import { getPartnerMessage } from '../api/exchange.ts'
 import { firstLine, getProfile, type Profile } from '../api/profile.ts'
 import { deleteSticker, getStickerByRkey } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
@@ -77,8 +78,20 @@ function ProfileCard({ did }: { did: Did }) {
   )
 }
 
-/** ④ 交換の記録カード。もらったピクルスのときだけ出す */
+/** ④ 交換の記録カード。もらったピクルスのときだけ出す。一言は相手の PDS から後で読む */
 function ExchangeCard({ exchange }: { exchange: Exchange }) {
+  const [message, setMessage] = useState<string>()
+
+  useEffect(() => {
+    let cancelled = false
+    getPartnerMessage(exchange.partner, exchange.sessionId)
+      .then((m) => !cancelled && setMessage(m))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [exchange.partner, exchange.sessionId])
+
   return (
     <section className="card">
       <p style={{ margin: '0 0 var(--space-2)', fontWeight: 'var(--font-weight-bold)' }}>交換の記録</p>
@@ -89,6 +102,12 @@ function ExchangeCard({ exchange }: { exchange: Exchange }) {
           <>
             <dt style={muted}>場所</dt>
             <dd style={{ margin: 0 }}>{exchange.occasion}</dd>
+          </>
+        )}
+        {message && (
+          <>
+            <dt style={muted}>相手からの一言</dt>
+            <dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{message}</dd>
           </>
         )}
       </dl>

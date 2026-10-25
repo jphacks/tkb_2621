@@ -17,6 +17,12 @@
             "maxGraphemes": 50,
             "maxLength": 500
           },
+          "message": {
+            "type": "string",
+            "description": "この交換で相手に渡す一言（任意）。渡す側が自分の記録に書く。成立の照合には使わない",
+            "maxGraphemes": 100,
+            "maxLength": 1000
+          },
           "partner": { "type": "string", "format": "did", "description": "交換相手のDID" },
           "gave": {
             "type": "ref",
