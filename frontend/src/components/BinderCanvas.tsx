@@ -169,11 +169,14 @@ export default function BinderCanvas(props: {
     }
   }, [jar])
 
-  // 画面幅に合わせる
+  // 画面の残りの幅と高さの両方に収まる大きさにする（ページをスクロールさせない）
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-    const observer = new ResizeObserver(([entry]) => setPageWidth(Math.floor(entry.contentRect.width)))
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      setPageWidth(Math.floor(Math.min(width, height / PAGE_ASPECT)))
+    })
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
@@ -235,55 +238,57 @@ export default function BinderCanvas(props: {
   const sorted = [...items].sort((a, b) => a.placement.z - b.placement.z)
 
   return (
-    <div ref={containerRef} className={jar ? 'binder-jar' : board ? 'field-board' : undefined} style={jar || board ? undefined : { width: '100%' }}>
-      {jar && (
-        <div className="binder-bubbles" aria-hidden="true">
-          {BUBBLES.map((b) => (
-            <img key={b.src} src={b.src} alt="" style={{ left: b.left, top: b.top }} />
-          ))}
-        </div>
-      )}
-      {pageWidth > 0 && (
-        <Stage
-          width={pageWidth}
-          height={pageHeight}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-          onMouseDown={(e) => e.target === e.target.getStage() && onSelect(undefined)}
-          onTouchStart={(e) => e.evt.touches.length === 1 && e.target === e.target.getStage() && onSelect(undefined)}
-        >
-          <Layer>
-            {!jar && !board && <Rect width={pageWidth} height={pageHeight} fill="#fffdf6" stroke="#ccc" listening={false} />}
-            {sorted.map((item) => (
-              <StickerNode
-                key={item.id}
-                item={item}
-                pageWidth={pageWidth}
-                register={(node) => {
-                  if (node) nodes.current.set(item.id, node)
-                  else nodes.current.delete(item.id)
-                }}
-                onSelect={() => select(item.id)}
-                onChange={(node) => commit(item.id, node)}
-                onTapLocked={() => {
-                  // 他人のものをタップしたら、選んでいた自分のものは外す
-                  onSelect(undefined)
-                  onTapLocked?.(item.id)
-                }}
-              />
+    <div ref={containerRef} className="canvas-fit">
+      <div className={jar ? 'binder-jar' : board ? 'field-board' : undefined} style={{ width: pageWidth }}>
+        {jar && (
+          <div className="binder-bubbles" aria-hidden="true">
+            {BUBBLES.map((b) => (
+              <img key={b.src} src={b.src} alt="" style={{ left: b.left, top: b.top }} />
             ))}
-            {selected && (
-              <Transformer
-                ref={transformerRef}
-                keepRatio
-                flipEnabled={false}
-                enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-                boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 20 || Math.abs(newBox.height) < 20 ? oldBox : newBox)}
-              />
-            )}
-          </Layer>
-        </Stage>
-      )}
+          </div>
+        )}
+        {pageWidth > 0 && (
+          <Stage
+            width={pageWidth}
+            height={pageHeight}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onMouseDown={(e) => e.target === e.target.getStage() && onSelect(undefined)}
+            onTouchStart={(e) => e.evt.touches.length === 1 && e.target === e.target.getStage() && onSelect(undefined)}
+          >
+            <Layer>
+              {!jar && !board && <Rect width={pageWidth} height={pageHeight} fill="#fffdf6" stroke="#ccc" listening={false} />}
+              {sorted.map((item) => (
+                <StickerNode
+                  key={item.id}
+                  item={item}
+                  pageWidth={pageWidth}
+                  register={(node) => {
+                    if (node) nodes.current.set(item.id, node)
+                    else nodes.current.delete(item.id)
+                  }}
+                  onSelect={() => select(item.id)}
+                  onChange={(node) => commit(item.id, node)}
+                  onTapLocked={() => {
+                    // 他人のものをタップしたら、選んでいた自分のものは外す
+                    onSelect(undefined)
+                    onTapLocked?.(item.id)
+                  }}
+                />
+              ))}
+              {selected && (
+                <Transformer
+                  ref={transformerRef}
+                  keepRatio
+                  flipEnabled={false}
+                  enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                  boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 20 || Math.abs(newBox.height) < 20 ? oldBox : newBox)}
+                />
+              )}
+            </Layer>
+          </Stage>
+        )}
+      </div>
     </div>
   )
 }
