@@ -412,7 +412,7 @@ export default function Field() {
 
   async function onLeave() {
     if (!agent || !me || !field) return
-    if (!window.confirm(`「${field.title}」から抜けますか？\n自分が貼ったステッカーはこのフィールドから外れます。`)) return
+    if (!window.confirm(`「${field.title}」から抜けますか？\n自分が貼ったピクルスはこのフィールドから外れます。`)) return
     setBusy(true)
     setError(undefined)
     try {
@@ -566,7 +566,7 @@ export default function Field() {
 
       {tapped && (
         <div role="dialog" className="card field-tapped">
-          <p>{nameOf(tapped.author)} のステッカーです。交換すると自分のシール帳に貼れます</p>
+          <p>{nameOf(tapped.author)} のピクルスです。交換すると自分のビンに貼れます</p>
           <div className="field-tapped-actions">
             {agent && me && <WantButton key={tapped.uri} agent={agent} did={me} subject={tapped.placement.sticker} />}
             <button type="button" className="btn btn-primary" onClick={() => navigate('/exchange')}>
@@ -594,15 +594,15 @@ export default function Field() {
             </button>
           )}
           <div className="binder-hand-header">
-            <h2 className="section-title">手持ちのステッカー</h2>
+            <h2 className="section-title">手持ちのピクルス</h2>
             {mine && mine.length > 0 && <span className="binder-hand-hint">{mine.length}枚・タップして貼る</span>}
           </div>
           {!mine && <p className="text-muted">読み込み中…</p>}
-          {mine?.length === 0 && <p className="text-muted">まだステッカーがありません。撮影から作れます</p>}
+          {mine?.length === 0 && <p className="text-muted">まだピクルスがありません。撮影から作れます</p>}
           <div className="binder-hand">
             {mine?.map((sticker) => (
               <button key={sticker.ref.uri} type="button" className="binder-hand-item" onClick={() => void paste(sticker)} disabled={!items || pasting}>
-                <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ステッカー'} width={THUMB_SIZE} height={THUMB_SIZE} />
+                <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ピクルス'} width={THUMB_SIZE} height={THUMB_SIZE} />
               </button>
             ))}
           </div>

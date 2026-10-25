@@ -19,7 +19,7 @@ export default function StickerImage({ did, sticker, maxHeight }: { did: Did; st
   return (
     <img
       src={src}
-      alt={sticker.caption ?? 'ステッカー'}
+      alt={sticker.caption ?? 'ピクルス'}
       width={sticker.width}
       height={sticker.height}
       style={{ display: 'block', margin: '0 auto', maxWidth: '100%', maxHeight, width: 'auto', height: 'auto', objectFit: 'contain' }}

@@ -94,7 +94,7 @@ export default function Debug() {
   }
 
   async function removeSticker(uri: string) {
-    if (!window.confirm('このステッカーを削除しますか？')) return
+    if (!window.confirm('このピクルスを削除しますか？')) return
     setDeleting(uri)
     try {
       await deleteSticker(agent, did, uri)
@@ -128,13 +128,13 @@ export default function Debug() {
       <h1>debug</h1>
       <p>DID：{did}</p>
 
-      <h2>1. ステッカーを1件書く</h2>
+      <h2>1. ピクルスを1件書く</h2>
       <button type="button" onClick={createSticker}>
         uploadBlob → createRecord
       </button>
       <ResultView result={create} />
 
-      <h2>2. 自分のステッカーを読み戻す</h2>
+      <h2>2. 自分のピクルスを読み戻す</h2>
       <button type="button" onClick={listStickers}>
         listRecords
       </button>
