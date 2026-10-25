@@ -126,7 +126,7 @@ export default function Capture() {
           <span className="tag tag-field">✓位置情報を削除済み</span>
         </div>
         <label className="capture-caption">
-          ピクルス名（任意）
+          どんな味？（任意）
           <input type="text" className="input" value={caption} onChange={(e) => setCaption(e.target.value)} disabled={saving} />
         </label>
         <p className={captionTooLong ? 'capture-count over' : 'capture-count'}>
