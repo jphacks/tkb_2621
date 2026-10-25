@@ -9,7 +9,6 @@ import { getSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import Loading from '../components/Loading.tsx'
-import PageHeader from '../components/PageHeader.tsx'
 import { DisplayName, ProfileAvatar } from '../components/Profile.tsx'
 import StickerImage from '../components/StickerImage.tsx'
 import { tutorialSeen } from '../components/tutorial.ts'
@@ -202,7 +201,6 @@ export default function Timeline() {
 
   return (
     <>
-      <PageHeader title="タイムライン" />
       {done && shown.length === 0 && <p style={{ marginTop: 48, textAlign: 'center' }}>交換すると、相手の新しいピクルスがここに流れます</p>}
       <div className="timeline">
         {shown.map((item) => (

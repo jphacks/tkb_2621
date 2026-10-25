@@ -7,7 +7,6 @@ import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import ImageTrimmer from '../components/ImageTrimmer.tsx'
 import Loading from '../components/Loading.tsx'
-import PageHeader from '../components/PageHeader.tsx'
 import WebcamCapture from '../components/WebcamCapture.tsx'
 import type { Sticker } from '../lexicon-types.ts'
 
@@ -120,7 +119,6 @@ export default function Capture() {
   if (step.kind === 'cutting') {
     return (
       <>
-        <PageHeader title="ピクルス作成" />
         <div className="capture-viewer">
           <p role="status">ピクルスにしています…</p>
         </div>
@@ -178,7 +176,6 @@ export default function Capture() {
 
   return (
     <>
-      <PageHeader title="ピクルス作成" />
       <div className="segmented capture-modes">
         <button type="button" aria-pressed={mode === 'camera'} className={mode === 'camera' ? 'active' : undefined} onClick={() => setMode('camera')}>
           撮影

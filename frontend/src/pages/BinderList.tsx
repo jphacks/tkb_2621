@@ -7,7 +7,6 @@ import { listOwnedStickers, type OwnedSticker } from '../api/binder.ts'
 import { readCache, writeCache } from '../api/screenCache.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import Loading from '../components/Loading.tsx'
-import PageHeader from '../components/PageHeader.tsx'
 import { ProfileAvatar } from '../components/Profile.tsx'
 
 function stickerPath(uri: string): string {
@@ -71,7 +70,6 @@ export default function BinderList() {
 
   return (
     <>
-      <PageHeader title="ビン" />
       <div className="back-header">
         <Link to="/binder" className="icon-button" aria-label="ビンにもどる">
           <img src="/images/back.svg" alt="" width={13} height={18} />

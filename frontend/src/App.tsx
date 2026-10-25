@@ -1,4 +1,5 @@
-import { Outlet, Route, Routes } from 'react-router-dom'
+import { Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import PageHeader from './components/PageHeader.tsx'
 import TabBar from './components/TabBar.tsx'
 import Login from './pages/Login.tsx'
 import Timeline from './pages/Timeline.tsx'
@@ -14,9 +15,22 @@ import FieldJoin from './pages/FieldJoin.tsx'
 import Tutorial from './pages/Tutorial.tsx'
 import OAuthCallback from './pages/OAuthCallback.tsx'
 
+// 上のヘッダーに出す画面名。ここにない画面（交換・ステッカー詳細）はヘッダーを出さない
+function headerTitle(pathname: string): string | undefined {
+  if (pathname === '/') return 'タイムライン'
+  if (pathname === '/capture') return 'ピクルス作成'
+  if (pathname.startsWith('/binder')) return 'ビン'
+  if (pathname.startsWith('/fields')) return '共同フィールド'
+  if (pathname === '/tutorial') return '使い方'
+  return undefined
+}
+
+// ヘッダーとタブはスクロールの外に置き、いつも画面の上下に出しておく
 function TabLayout() {
+  const title = headerTitle(useLocation().pathname)
   return (
     <>
+      {title && <PageHeader title={title} />}
       <main className="page">
         <Outlet />
       </main>

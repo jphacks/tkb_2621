@@ -11,7 +11,6 @@ import { useAuth } from '../auth/AuthContext.tsx'
 import { ProfileAvatar } from '../components/Profile.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import Loading from '../components/Loading.tsx'
-import PageHeader from '../components/PageHeader.tsx'
 import type { Placement } from '../lexicon-types.ts'
 
 const SAVE_DELAY_MS = 1000
@@ -271,8 +270,6 @@ export default function Binder() {
 
   return (
     <>
-      <PageHeader title="ビン" />
-
       <div className="binder-toolbar">
         <Link to="/exchange" className="btn btn-primary binder-exchange">
           ⇔交換する
