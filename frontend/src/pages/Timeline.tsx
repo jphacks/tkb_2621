@@ -1,8 +1,10 @@
 // S2 タイムライン。GET /timeline を新しい順に並べ、下までスクロールしたら cursor で続きを読む。
+// 前に開いたときの一覧があればまずそれを出し、裏で1ページ目を読み直して差し替える。
 import { AtUri, type Agent } from '@atproto/api'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { getTimeline, type TimelineItem } from '../api/backend.ts'
+import { readCache, writeCache } from '../api/screenCache.ts'
 import { getSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
@@ -63,6 +65,12 @@ function dedupe(items: TimelineItem[]): TimelineItem[] {
   })
 }
 
+interface TimelineCache {
+  items: TimelineItem[]
+  cursor?: string
+  done: boolean
+}
+
 function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did }) {
   if (item.kind === 'sticker') {
     const path = stickerPath(item.uri)
@@ -119,14 +127,40 @@ function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did 
 export default function Timeline() {
   const auth = useAuth()
   const agent = auth.status === 'signedIn' ? auth.agent : undefined
+  const cacheKey = auth.status === 'signedIn' ? `timeline:${auth.did}` : undefined
 
-  const [items, setItems] = useState<TimelineItem[]>([])
-  const [cursor, setCursor] = useState<string>()
-  const [done, setDone] = useState(false)
+  const [cached] = useState(() => readCache<TimelineCache>(cacheKey))
+  const [items, setItems] = useState<TimelineItem[]>(cached?.items ?? [])
+  const [cursor, setCursor] = useState<string | undefined>(cached?.cursor)
+  const [done, setDone] = useState(cached?.done ?? false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>()
+  // 前の一覧を読み直している間は、続きを読まない
+  const [refreshing, setRefreshing] = useState(cached !== undefined)
   const loadingRef = useRef(false)
   const sentinel = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    writeCache(cacheKey, { items, cursor, done } satisfies TimelineCache)
+  }, [cacheKey, items, cursor, done])
+
+  // 前の一覧を出しているときは、1ページ目を裏で読み直して差し替える。読めなければ前の一覧のまま
+  useEffect(() => {
+    if (!agent || !cached) return
+    let cancelled = false
+    getTimeline(agent)
+      .then((res) => {
+        if (cancelled) return
+        setItems(res.items)
+        setCursor(res.cursor ?? undefined)
+        setDone(!res.cursor)
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setRefreshing(false))
+    return () => {
+      cancelled = true
+    }
+  }, [agent, cached])
 
   const loadMore = useCallback(async () => {
     if (!agent || done || loadingRef.current) return
@@ -149,13 +183,13 @@ export default function Timeline() {
   // 一番下の目印が見えたら続きを読む。読み終わると loadMore が作り直され、まだ見えていればもう一度読む
   useEffect(() => {
     const el = sentinel.current
-    if (!el || error) return
+    if (!el || error || refreshing) return
     const observer = new IntersectionObserver((entries) => {
       if (entries[0]?.isIntersecting) void loadMore()
     }, { rootMargin: '200px' })
     observer.observe(el)
     return () => observer.disconnect()
-  }, [loadMore, error])
+  }, [loadMore, error, refreshing])
 
   if (auth.status === 'loading') return <p>読み込み中…</p>
   if (auth.status === 'signedOut' || !agent) return <Navigate to="/login" replace />

@@ -52,8 +52,22 @@ export async function stickerImageUrl(did: Did, sticker: Sticker): Promise<strin
   return `${pds}/xrpc/com.atproto.sync.getBlob?${params}`
 }
 
-/** strongRef の先のステッカーを、持ち主の PDS から読む */
-export async function getSticker(ref: StrongRef): Promise<Sticker> {
+// cid を付けて読むので、同じ uri と cid なら中身は変わらない。ページ読み込みの間ずっと覚えておく
+const stickerCache = new Map<string, Promise<Sticker>>()
+
+/** strongRef の先のステッカーを、持ち主の PDS から読む。失敗したら次に呼ばれたときに読み直す */
+export function getSticker(ref: StrongRef): Promise<Sticker> {
+  const key = `${ref.uri}#${ref.cid}`
+  let sticker = stickerCache.get(key)
+  if (!sticker) {
+    sticker = fetchSticker(ref)
+    sticker.catch(() => stickerCache.delete(key))
+    stickerCache.set(key, sticker)
+  }
+  return sticker
+}
+
+async function fetchSticker(ref: StrongRef): Promise<Sticker> {
   const uri = new AtUri(ref.uri)
   const { pds } = await resolveDid(uri.host)
   const params = new URLSearchParams({ repo: uri.host, collection: uri.collection, rkey: uri.rkey, cid: ref.cid })

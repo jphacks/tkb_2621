@@ -1,9 +1,11 @@
 // S7 共同フィールド一覧。自分の PDS の field.member から参加中のものを並べ、新しく作れる。
 // 削除されたものは「削除済み」と出す。開いたとき、自分が作って閉じた field の後始末もする。
+// 前に開いたときの一覧があればまずそれを出し、裏で読み直す。
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { joinField } from '../api/backend.ts'
 import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, fieldPath, listJoinedFields, type JoinedField } from '../api/field.ts'
+import { readCache, writeCache } from '../api/screenCache.ts'
 import { countGraphemes } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
@@ -18,8 +20,9 @@ export default function FieldList() {
   const navigate = useNavigate()
   const agent = auth.status === 'signedIn' ? auth.agent : undefined
   const did = auth.status === 'signedIn' ? auth.did : undefined
+  const cacheKey = did && `fields:${did}`
 
-  const [fields, setFields] = useState<JoinedField[]>()
+  const [fields, setFields] = useState(() => readCache<JoinedField[]>(cacheKey))
   const [listError, setListError] = useState<string>()
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
@@ -33,7 +36,10 @@ export default function FieldList() {
     // 作った人が先に抜けていて閉じた field を消す。失敗しても一覧は出す
     void cleanupClosedOwnFields(agent, did).catch(() => undefined)
     listJoinedFields(agent, did)
-      .then((list) => !cancelled && setFields(list))
+      .then((list) => {
+        writeCache(`fields:${did}`, list)
+        if (!cancelled) setFields(list)
+      })
       .catch((e: unknown) => !cancelled && setListError(errorMessage(e)))
     return () => {
       cancelled = true

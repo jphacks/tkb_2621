@@ -1,10 +1,12 @@
 // S4 シール帳。手持ちのステッカーをページに貼り、動かし終わって1秒たったら binder.page に保存する。
 // 選んだものは「はがす」でページから外せる（ステッカー本体は消さない）。削除されたステッカーの配置は保存のときに落とす。
 // 手持ちのステッカーは長押しするとステッカー詳細へ跳ぶ。
+// 前に開いたときの手持ちと配置があればまずそれを出し、裏で読み直す。
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { AtUri } from '@atproto/api'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { centerPlacement, findDeletedStickers, getPage, listOwnedStickers, listPageNumbers, putPage, type OwnedSticker } from '../api/binder.ts'
+import { readCache, writeCache } from '../api/screenCache.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import Avatar from '../components/Avatar.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
@@ -30,6 +32,14 @@ function newId(): string {
   return `p${nextId}`
 }
 
+function toItems(placements: Placement[] | undefined): PageItem[] | undefined {
+  return placements?.map((placement) => ({ id: newId(), placement }))
+}
+
+function pageCacheKey(did: string | undefined, page: number | undefined): string | undefined {
+  return did && page !== undefined ? `binder-page:${did}:${page}` : undefined
+}
+
 function stickerPath(uri: string): string {
   const at = new AtUri(uri)
   return `/sticker/${encodeURIComponent(at.host)}/${encodeURIComponent(at.rkey)}`
@@ -53,11 +63,11 @@ export default function Binder() {
   const did = auth.status === 'signedIn' ? auth.did : undefined
   const navigate = useNavigate()
 
-  const [owned, setOwned] = useState<OwnedSticker[]>()
+  const [owned, setOwned] = useState(() => readCache<OwnedSticker[]>(did && `binder-owned:${did}`))
   const [ownedError, setOwnedError] = useState<string>()
-  const [pages, setPages] = useState<number[]>()
+  const [pages, setPages] = useState(() => readCache<number[]>(did && `binder-pages:${did}`))
   const [pageIndex, setPageIndex] = useState(0)
-  const [items, setItems] = useState<PageItem[]>()
+  const [items, setItems] = useState(() => toItems(readCache<Placement[]>(pageCacheKey(did, pages?.[0]))))
   const [pageError, setPageError] = useState<string>()
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [selectedId, setSelectedId] = useState<string>()
@@ -66,6 +76,16 @@ export default function Binder() {
 
   // 削除された（RecordNotFound の）ステッカーの URI。その配置は保存のときに落とす
   const deletedStickers = useRef(new Set<string>())
+  // 前の配置を出している間に貼った・動かした。読み直した配置でそれを上書きしない
+  const touched = useRef(false)
+
+  useEffect(() => {
+    if (did && pages) writeCache(`binder-pages:${did}`, pages)
+  }, [did, pages])
+
+  useEffect(() => {
+    if (items) writeCache(pageCacheKey(did, page), items.map((item) => item.placement))
+  }, [did, page, items])
 
   // ---- 保存（最後に動かしてから1秒後。ページを替える・アプリを閉じるときはすぐ） ----
   const pending = useRef<{ page: number; placements: Placement[] } | undefined>(undefined)
@@ -113,7 +133,10 @@ export default function Binder() {
     if (!agent || !did) return
     let cancelled = false
     listOwnedStickers(agent, did)
-      .then((list) => !cancelled && setOwned(list))
+      .then((list) => {
+        writeCache(`binder-owned:${did}`, list)
+        if (!cancelled) setOwned(list)
+      })
       .catch((e: unknown) => !cancelled && setOwnedError(errorMessage(e)))
     listPageNumbers(agent, did)
       .then((list) => !cancelled && setPages(list))
@@ -129,7 +152,7 @@ export default function Binder() {
     getPage(agent, did, page)
       .then((placements) => {
         if (cancelled) return
-        setItems(placements.map((placement) => ({ id: newId(), placement })))
+        if (!touched.current) setItems(toItems(placements))
         // 表示とは別に、ステッカーが削除されたかを確かめておく（一時的に読めないだけのものは残す）
         void findDeletedStickers(placements.map((p) => p.sticker)).then((uris) => uris.forEach((uri) => deletedStickers.current.add(uri)))
       })
@@ -150,6 +173,7 @@ export default function Binder() {
 
   function update(next: PageItem[]) {
     if (page === undefined) return
+    touched.current = true
     setItems(next)
     schedule(page, next)
   }
@@ -209,8 +233,9 @@ export default function Binder() {
 
   function goTo(index: number) {
     void flush()
+    touched.current = false
     setSelectedId(undefined)
-    setItems(undefined)
+    setItems(toItems(readCache<Placement[]>(pageCacheKey(did, pages?.[index]))))
     setPageError(undefined)
     setPageIndex(index)
   }
@@ -226,6 +251,7 @@ export default function Binder() {
       setPageError(`ページを足せませんでした：${errorMessage(e)}`)
       return
     }
+    touched.current = false
     setPages([...pages, number])
     setSelectedId(undefined)
     setItems(undefined)
