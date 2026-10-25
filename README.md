@@ -4,6 +4,12 @@
 
 ![Pikkles](frontend/public/images/ogp.png)
 
+## デモ動画
+
+[![Pikkles デモ動画](https://img.youtube.com/vi/uTYIhYOAEVw/hqdefault.jpg)](https://youtu.be/uTYIhYOAEVw)
+
+▶ https://youtu.be/uTYIhYOAEVw
+
 ## 製品概要
 
 ### 背景（製品開発のきっかけ、課題等）
@@ -70,6 +76,13 @@ QRコードには **60秒の時間制限** が設けられており、あえて�
 ## 開発技術
 
 ### 活用した技術
+
+[![Tech stack](https://skillicons.dev/icons?i=ts,react,vite,py,fastapi,opencv,postgres,vercel,githubactions)](https://skillicons.dev)
+
+![Bluesky](https://img.shields.io/badge/Bluesky-AT_Protocol-0285FF?logo=bluesky&logoColor=white)
+![Render](https://img.shields.io/badge/Render-000000?logo=render&logoColor=white)
+![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-005CED?logo=onnx&logoColor=white)
+![Konva](https://img.shields.io/badge/Konva-0D83CD)
 
 #### API・データ
 
