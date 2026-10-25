@@ -17,11 +17,3 @@ export async function getProfile(did: Did): Promise<Profile> {
   if (!res.ok) throw new Error(`プロフィールが読めません（${res.status}）`)
   return (await res.json()) as Profile
 }
-
-/** 自己紹介文の、空でない最初の1行 */
-export function firstLine(description?: string): string | undefined {
-  return description
-    ?.split('\n')
-    .map((line) => line.trim())
-    .find((line) => line !== '')
-}

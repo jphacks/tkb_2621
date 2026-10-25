@@ -38,6 +38,8 @@
   --color-field-thumb: #fffdf7;
   --color-tag-place: #9bd676;
   --color-tag-text: #f6f5f0;
+  --color-exchange-bg: #f7ffeb;
+  --color-text-subtle: rgba(0, 0, 0, 0.4);
 
   /* 文字 */
   --font-base: '42dot Sans', system-ui, -apple-system, 'Hiragino Sans', sans-serif;
@@ -1214,4 +1216,159 @@ label:focus-within:has(> .visually-hidden) {
   font-size: var(--font-size-display);
   color: var(--color-brand);
   text-shadow: var(--shadow-logo);
+}
+
+/* ピクルス詳細 */
+.detail-back {
+  margin: var(--space-3) 0 0 -8px;
+}
+
+.detail-image {
+  margin: var(--space-2) 0 var(--space-5);
+}
+
+.detail-gone {
+  margin-top: 48px;
+  text-align: center;
+}
+
+.detail-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+}
+
+.detail-name {
+  margin: 0 0 var(--space-5);
+  font-size: 24px;
+  font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.detail-cards {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.detail-card {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-button);
+  background: var(--color-surface);
+}
+
+.detail-card-label {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.detail-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding-left: var(--space-4);
+}
+
+.detail-profile-avatar {
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.detail-profile-names {
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-profile-names p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-profile-name {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.detail-profile-handle {
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 自己紹介文。改行はそのまま、2行を超えたら切る */
+.detail-profile-bio {
+  display: -webkit-box;
+  margin: var(--space-2) var(--space-3) 0;
+  padding: 6px var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+  font-size: var(--font-size-xs);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.detail-skeleton {
+  background: var(--color-surface-muted);
+}
+
+.detail-skeleton-line {
+  width: 60%;
+  height: 14px;
+  border-radius: var(--radius-xs);
+}
+
+.detail-exchange {
+  background: var(--color-exchange-bg);
+}
+
+.detail-exchange-title {
+  margin: 0 0 var(--space-1);
+  color: var(--color-brand);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.detail-exchange-list {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.detail-exchange-row {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+}
+
+.detail-exchange-row + .detail-exchange-row {
+  border-top: 1px solid var(--color-border-input);
+}
+
+.detail-exchange-row dt {
+  color: var(--color-text-muted);
+}
+
+.detail-exchange-row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* コメントはラベルの下に本文 */
+.detail-exchange-row-stack {
+  grid-template-columns: 1fr;
+}
+
+.detail-delete {
+  margin-top: var(--space-5);
 }
