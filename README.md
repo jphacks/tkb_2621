@@ -1,5 +1,5 @@
 # Pikkles（ピクルス）
-
+URL : https://pikkles.kosora623.com/login
 <!-- デモ動画ができたら、サムネイル画像と YouTube のリンクに差し替える -->
 [![Pikkles デモ動画](https://jphacks.com/wp-content/uploads/2026/07/IMG_5316.png)](https://www.youtube.com/watch?v=piaNsc6ilBI)
 
