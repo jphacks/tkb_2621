@@ -102,26 +102,30 @@ export default function ImageTrimmer({
     onPointerCancel: onPointerUp,
   })
 
+  const boxStyle = {
+    left: `${rect.left * 100}%`,
+    top: `${rect.top * 100}%`,
+    width: `${(rect.right - rect.left) * 100}%`,
+    height: `${(rect.bottom - rect.top) * 100}%`,
+  }
+
   return (
     <>
       <div className="trim-viewer">
         <div className="trim-stage" ref={stageRef}>
           {url && <img ref={imgRef} src={url} alt="切り出す画像" draggable={false} onLoad={() => setLoaded(true)} />}
           {loaded && (
-            <div
-              className="trim-box"
-              style={{
-                left: `${rect.left * 100}%`,
-                top: `${rect.top * 100}%`,
-                width: `${(rect.right - rect.left) * 100}%`,
-                height: `${(rect.bottom - rect.top) * 100}%`,
-              }}
-              {...handleProps('move')}
-            >
-              {(['nw', 'ne', 'sw', 'se'] as const).map((h) => (
-                <span key={h} className={`trim-handle trim-handle-${h}`} {...handleProps(h)} />
-              ))}
-            </div>
+            <>
+              {/* 外側を暗くする影だけ画像の範囲で切り取り、枠とつまみは画像の外にはみ出せるようにする */}
+              <div className="trim-shade">
+                <div className="trim-hole" style={boxStyle} />
+              </div>
+              <div className="trim-box" style={boxStyle} {...handleProps('move')}>
+                {(['nw', 'ne', 'sw', 'se'] as const).map((h) => (
+                  <span key={h} className={`trim-handle trim-handle-${h}`} {...handleProps(h)} />
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>

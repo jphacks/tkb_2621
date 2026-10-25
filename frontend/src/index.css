@@ -745,7 +745,6 @@ label:focus-within:has(> .visually-hidden) {
 
 .trim-stage {
   position: relative;
-  overflow: hidden;
   line-height: 0;
   touch-action: none;
   user-select: none;
@@ -757,11 +756,22 @@ label:focus-within:has(> .visually-hidden) {
   max-height: 60vh;
 }
 
+.trim-shade {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.trim-hole {
+  position: absolute;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
 .trim-box {
   position: absolute;
   box-sizing: border-box;
   border: 2px solid #fff;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
   cursor: move;
   touch-action: none;
 }
