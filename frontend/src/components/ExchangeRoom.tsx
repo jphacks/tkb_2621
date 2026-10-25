@@ -121,6 +121,8 @@ export default function ExchangeRoom(props: {
   /** 相手に渡す一言（任意） */
   const [message, setMessage] = useState('')
   const [partnerRef, setPartnerRef] = useState<StrongRef>()
+  /** 相手が選び直したので、自分の確定が取り消された */
+  const [partnerChanged, setPartnerChanged] = useState(false)
   const [partnerImage, setPartnerImage] = useState<string>()
   const [partnerHandle, setPartnerHandle] = useState<string>()
   const [rejected, setRejected] = useState(false)
@@ -239,9 +241,16 @@ export default function ExchangeRoom(props: {
 
   function onMessage(message: ServerMessage) {
     switch (message.type) {
-      case 'partner_selected':
+      case 'partner_selected': {
+        const prev = latest.current.partnerRef
+        if (prev && (prev.uri !== message.sticker.uri || prev.cid !== message.sticker.cid)) {
+          // サーバーは相手の選び直しで自分の確定を取り消すので、画面も確定する前に戻す
+          setConfirmed(false)
+          setPartnerChanged(true)
+        }
         setPartnerRef(message.sticker)
         break
+      }
       case 'both_confirmed':
         setOccasion(message.occasion)
         if (!recordStarted.current) {
@@ -285,6 +294,7 @@ export default function ExchangeRoom(props: {
   function confirm() {
     if (!selected || messageTooLong) return
     setConfirmed(true)
+    setPartnerChanged(false)
     socketRef.current?.send({ type: 'confirm' })
   }
 
@@ -482,7 +492,11 @@ export default function ExchangeRoom(props: {
       </p>
 
       <p className="exchange-hint exchange-confirm-hint">
-        {confirmed ? '相手の確定を待っています…' : '2人とも確定すると交換が成立します'}
+        {confirmed
+          ? '相手の確定を待っています…'
+          : partnerChanged
+            ? '相手が選び直しました。確かめてから、もう一度確定してください'
+            : '2人とも確定すると交換が成立します'}
       </p>
       <button type="button" className="btn btn-primary btn-block exchange-pick" onClick={confirm} disabled={!selected || !partnerRef || confirmed || messageTooLong}>
         {confirmed ? '確定しました' : 'Pick!'}
