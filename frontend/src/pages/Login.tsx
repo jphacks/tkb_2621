@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.tsx'
-import { ProfileAvatar } from '../components/Profile.tsx'
 import Loading from '../components/Loading.tsx'
-import PageHeader from '../components/PageHeader.tsx'
 
 function LegalLinks({ className }: { className: string }) {
   return (
@@ -23,31 +21,8 @@ export default function Login() {
 
   if (auth.status === 'loading') return <Loading />
 
-  if (auth.status === 'signedIn') {
-    return (
-      <>
-        <PageHeader title="アカウント" />
-        <div className="card account-card">
-          <ProfileAvatar did={auth.did} size={48} />
-          <div className="account-names">
-            <p className="account-handle">@{auth.handle}</p>
-            <p className="text-muted account-did">{auth.did}</p>
-          </div>
-        </div>
-        <p className="text-muted account-note">ログインしています</p>
-        <Link to="/" className="btn btn-primary btn-block account-action">
-          タイムラインへ
-        </Link>
-        <Link to="/tutorial" className="btn btn-block account-action">
-          使い方を見る
-        </Link>
-        <button type="button" className="btn btn-block account-action" onClick={() => auth.signOut()}>
-          ログアウト
-        </button>
-        <LegalLinks className="account-legal" />
-      </>
-    )
-  }
+  // ログインした状態で開いたらアカウントへ。前はここにアカウントの中身を出していたので、URL はそのまま生かす
+  if (auth.status === 'signedIn') return <Navigate to="/account" replace />
 
   async function signIn(input: string) {
     setSubmitting(true)

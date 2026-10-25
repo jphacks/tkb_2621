@@ -19,6 +19,7 @@ const FieldList = lazy(() => import('./pages/FieldList.tsx'))
 const Field = lazy(() => import('./pages/Field.tsx'))
 const FieldJoin = lazy(() => import('./pages/FieldJoin.tsx'))
 const Tutorial = lazy(() => import('./pages/Tutorial.tsx'))
+const Account = lazy(() => import('./pages/Account.tsx'))
 const Terms = lazy(() => import('./pages/Terms.tsx'))
 const Privacy = lazy(() => import('./pages/Privacy.tsx'))
 
@@ -29,6 +30,7 @@ function headerTitle(pathname: string): string | undefined {
   if (pathname.startsWith('/binder')) return 'ビン'
   if (pathname.startsWith('/fields')) return '共同フィールド'
   if (pathname === '/tutorial') return '使い方'
+  if (pathname === '/account') return 'アカウント'
   return undefined
 }
 
@@ -72,6 +74,7 @@ export default function App() {
           <Route path="/fields/join" element={<FieldJoin />} />
           <Route path="/fields/:did/:rkey" element={<Field />} />
           <Route path="/tutorial" element={<Tutorial />} />
+          <Route path="/account" element={<Account />} />
         </Route>
       </Routes>
     </div>
