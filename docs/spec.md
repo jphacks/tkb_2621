@@ -1,6 +1,6 @@
 # 仕様書：Pikkles（ピクルス）
 
-JPHACKS 2026。実装はこの仕様に従う。迷ったらここに戻り、仕様にないことは勝手に足さない。
+JPHACKS 2026 で作り、Hack Day のあとも続けている。実装はこの仕様に従う。迷ったらここに戻り、仕様にないことは勝手に足さない。
 
 ## 1. プロダクト概要
 
@@ -50,7 +50,7 @@ JPHACKS 2026。実装はこの仕様に従う。迷ったらここに戻り、�
 | 16 | 交換の演出 | あれば良い | シールが飛んでくるアニメーション |
 | 17 | 場面の共同フィールドに誘う | あれば良い | 交換成立後に「この場面の共同フィールドにも貼る？」と聞き、選んだら招待なしで参加して貼れる |
 
-作らない（決勝で検討）：交換の取り消し、1日1ページの自動アーカイブ、通知、非公開化（Atproto Spaces）、Blueskyのモデレーション（ラベル）への対応、オンラインでの交換申請。
+作らない（今後検討する）：交換の取り消し、1日1ページの自動アーカイブ、通知、非公開化（Atproto Spaces）、Blueskyのモデレーション（ラベル）への対応、オンラインでの交換申請。
 
 Blueskyのオリジナルテーマ「ATプロトコルを使って、人と人のつながりを組み込んだサービスやアプリを開発してください」のうち、「利用者が自分で選べること、安心して使えること」に応えるのが8〜11と13。
 
@@ -69,6 +69,11 @@ Blueskyのオリジナルテーマ「ATプロトコルを使って、人と人�
 | S9 | アカウント | 自分のアカウント、使い方、ログアウト、利用規約・プライバシーポリシー | ヘッダー右上の自分のアイコンから（2026-10-26追加） |
 
 下部タブ：タイムライン / 撮影 / ビン / 共同フィールド
+
+- ログインしたあと、今の版の利用規約とプライバシーポリシーに同意するまでは、画面の代わりに同意の画面を出す。ページは移動しないので、QR から来た人も同意したらそのまま元の画面（交換・共同フィールドの参加）に進む
+- 初めてタイムラインを開いたときだけ、使い方（`/tutorial`）へ送る。見たかどうかはブラウザに残す
+- ログインはふだん bsky.social。それ以外の PDS の人はハンドルを入れてログインする
+- Render が寝ていて応答が遅いときは「サーバーを起こしています…」と出す
 
 ### シール帳を「ビン」に見立てる（2026-10-24追加）
 
@@ -172,7 +177,7 @@ Lexiconの定義ファイル（JSON）は `lexicons/`、TypeScriptの型は `fro
 
 本線は「相手のPDSを直接読む」方式。相手は数人しかいないので、全体を購読しなくて足りる。Jetstreamによる収集は、間に合えば足す（後述）。
 
-1. 表示する相手は「成立した交換の相手」と「同じ共同フィールドのメンバー」。どちらもサーバーのPostgresに持つ（交換は成立判定のとき、メンバーは招待からの参加のときに記録する）
+1. 表示する相手は「成立した交換の相手」と「同じ共同フィールドのメンバー」。交換の相手はログイン中のユーザーのPDSの `exchange` から集める（Renderは寝るとメモリが消えるため、サーバーには持たない）。メンバーはサーバーのPostgresに持つ（招待からの参加のときに記録する）
 2. タイムラインAPIは、その相手それぞれのPDSから `app.<ns>.sticker` と `app.<ns>.exchange` を `listRecords` で読み、新しい順に混ぜて返す。交換は成立したものだけ
 3. 削除されたレコードはPDSから消えているので、読み直せば自然に出なくなる。削除されたステッカーはタイムライン・シール帳・共同フィールドに表示しない（strongRefの先が読めなければ表示しない）
 4. ログイン中のユーザーとブロック関係にある人の出来事は返さない。ブロックは6章の成立条件5と同じく、2人のPDSを `listRecords` で読んで確かめる
@@ -189,23 +194,30 @@ Lexiconの定義ファイル（JSON）は `lexicons/`、TypeScriptの型は `fro
 3. 他人の移動が見えるのは、その人が手を離して保存したあと（S8は動かし終わって1秒後に保存する）。ドラッグ中の動きは配らない
 4. Jetstreamの中身は署名を確かめていないので、PDSを正とする。30秒ごと、Jetstreamをつなぎ直したとき、画面に戻ったときに、メンバー全員のPDSから読み直して正す。自分の貼り付けは画面の状態を正とし、保存待ちの動きを消さない
 
-## 8. バックエンドAPI（下書き）
+## 8. バックエンドAPI
 
 | メソッド | パス | 用途 | 入力 | 出力 |
 | --- | --- | --- | --- | --- |
 | POST | `/cutout` | 切り抜き・白フチ・影 | 画像（multipart） | JSON：`image`（base64の透過PNG）、`width`、`height`。長辺を1024pxに縮めてから処理し、1MBに収める |
 | POST | `/exchange/sessions` | 交換セッション開始 | `occasion`（任意） | `sessionId`、QR用URL |
-| POST | `/exchange/sessions/{id}/join` | 参加 | なし | セッション状態 |
+| GET | `/exchange/sessions/{id}/qr` | QRの作り直し（始めた人だけ、相手の参加前だけ） | なし | `sessionId`、QR用URL |
+| POST | `/exchange/sessions/{id}/join` | 参加 | QRの合言葉 `t` | セッション状態 |
 | WS | `/exchange/sessions/{id}/ws` | 選択・確定の同期 | strongRef、確定 | 相手の選択、確定状態 |
 | POST | `/exchange/sessions/{id}/commit` | 交換記録を書いたことの通知 | 記録のURI | 成立判定の結果 |
 | GET | `/timeline` | タイムライン | `cursor`、`limit` | 出来事一覧 |
 | POST | `/fields/invite` | 共同フィールドの招待（メンバーだけ） | `field`（strongRef） | `code`（6文字、10分で失効。QRにも同じものを載せる）、`expiresIn` |
 | POST | `/fields/invite/lookup` | 参加コードからフィールドを引く | `code` | `field`、`expiresIn`。違うコードは1人10分に10回まで（超えると429） |
 | POST | `/fields/join` | 共同フィールドに参加 | `field`、`code`（すでにメンバーの人と作った人は不要） | メンバー一覧 |
+| GET | `/fields/members` | メンバー一覧 | `uri` | メンバー一覧、`closed` |
+| DELETE | `/fields/members` | 共同フィールドから抜ける。最後の1人が抜けたら閉じ、もう参加できない（410） | `uri` | メンバー一覧、`closed` |
+| DELETE | `/fields` | 共同フィールドの削除（作った人だけ）。メンバーを全部外して閉じる | `uri` | ― |
+| GET | `/health` | 起きているかの確認 | なし | `status`、本番に出ているコミット |
+| GET | `/.well-known/did.json` | 自分の `did:web` の公開 | なし | DID文書 |
+| GET | `/me` | 認証の確認 | なし | `did` |
 
 成立した交換は2人の PDS から読む（サーバーは持たない）。
 
-WebSocketメッセージ（案）
+WebSocketメッセージ
 
 ```text
 → {"type": "auth", "token": "…"}
@@ -229,10 +241,10 @@ WebSocketメッセージ（案）
 
 | 層 | 技術 | 公開先 |
 | --- | --- | --- |
-| フロント | TypeScript、React（Vite）、react-konva、QR読み取りライブラリ | Vercel（`pikkles.kosora623.com`） |
+| フロント | TypeScript、React（Vite）、react-konva、qrcode、jsQR（QR読み取り） | Vercel（`pikkles.kosora623.com`） |
 | 認証・保存 | `@atproto/api`、ブラウザ用OAuthクライアント | ― |
-| バックエンド | Python（FastAPI）、rembg（軽量モデル）、OpenCV、WebSocket | Render（無料） |
-| DB | Render Postgres（無料） | Render |
+| バックエンド | Python（FastAPI）、u2netp を onnxruntime で直接推論（rembg はモデルの取得だけ）、OpenCV、Pillow、WebSocket | Render（無料） |
+| DB | Render Postgres（無料）。共同フィールドのメンバーと、閉じたフィールドだけを持つ | Render |
 | タイムライン | 相手のPDSを直接読む（Jetstreamの収集は間に合えば） | Render |
 | 共同フィールドのリアルタイム反映 | ブラウザから公開のJetstreamを購読（7章） | ― |
 
@@ -241,15 +253,17 @@ Hack Dayのデプロイ先はRender（無料、カード不要）。そのため
 - DBはRender Postgres（無料、作成から30日で期限切れ）
 - 収集プロセスを足す場合は、Webサービスの中で起動する
 - 無料版は15分アクセスがないと止まり、次のリクエストに数十秒かかる
-- 背景除去は軽量モデル（`u2netp` など）。RMBG系は非商用ライセンスなので使わない
-- デプロイはGitHub Actions（`.github/workflows/deploy.yml`）。frontendはVercel CLI、backendはRenderのDeploy Hook
+- 背景除去は軽量モデル（`u2netp` など）。RMBG系は非商用ライセンスなので使わない。512MBに収めるため rembg は読まずに onnxruntime を直接呼び、1枚ずつ処理する
+- `main` に入ったものは、frontend は Vercel、backend は Render がそれぞれデプロイする。GitHub Actions（`.github/workflows/ci.yml`）は PR と `main` で、frontend の型・lint・build と backend の import を確かめる
 
 安心のための実装上の決まり
 
 - 画像は切り抜き後にPNGで再エンコードし、EXIFを含むメタデータを残さない。アップロードしたイラストも同じく再エンコードする
 - OAuthで要求する権限には、自分たちのコレクション（`com.kosora623.pikkles.*`）、画像のアップロード、`app.bsky.graph.follow`（要件13を作る場合）を含める
 
-## 10. 開発の順番
+## 10. Hack Day の開発の順番（記録）
+
+Hack Day（10-24〜10-25）にこの順で作った。今は個人で続けていて、15時間目の機能の凍結などの決まりはもう使わない（2026-10-26）。
 
 時間は10-24 10:20の開始から数える（2026-10-24更新：時刻と睡眠を追加）。
 
