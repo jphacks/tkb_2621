@@ -310,6 +310,25 @@ export default function Field() {
     }
   }, [showMembers])
 
+  // タップした他人のピクルスの説明も、外を押すか Esc で閉じる
+  // （別の他人のピクルスを押したときは、閉じたあとにそちらの説明が開く）
+  const tappedRoot = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!tapped) return
+    const onPointerDown = (e: PointerEvent) => {
+      if (!tappedRoot.current?.contains(e.target as Node)) setTapped(undefined)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTapped(undefined)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [tapped])
+
   // ---- 保存（最後に動かしてから1秒後。画面を閉じるときはすぐ） ----
   const pending = useRef(new Set<string>())
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -619,7 +638,7 @@ export default function Field() {
 
         {tapped && (
           // 下半分のピクルスなら説明を上端に出し、タップしたピクルスを隠さない
-          <div role="dialog" className={tapped.placement.y > PLACEMENT_LIMITS.position.full / 2 ? 'card field-tapped field-tapped-top' : 'card field-tapped'}>
+          <div ref={tappedRoot} role="dialog" className={tapped.placement.y > PLACEMENT_LIMITS.position.full / 2 ? 'card field-tapped field-tapped-top' : 'card field-tapped'}>
             <p>
               {tapped.owner === tapped.author ? (
                 <>{nameOf(tapped.author)} のピクルスです。</>
@@ -641,9 +660,6 @@ export default function Field() {
                 onClick={() => navigate(`/sticker/${encodeURIComponent(tapped.owner)}/${encodeURIComponent(new AtUri(tapped.placement.sticker.uri).rkey)}`)}
               >
                 詳細
-              </button>
-              <button type="button" className="btn" onClick={() => setTapped(undefined)}>
-                閉じる
               </button>
             </div>
           </div>
