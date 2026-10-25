@@ -974,12 +974,12 @@ label:focus-within:has(> .visually-hidden) {
 }
 
 /* ビン・共同フィールドの画面は縦に並べ、キャンバスを残りの高さに収めてページをスクロールさせない */
-.page:has(> .canvas-fit) {
+.page:has(> .canvas-fit, > .field-stage) {
   display: flex;
   flex-direction: column;
 }
 
-.page:has(> .canvas-fit) > * {
+.page:has(> .canvas-fit, > .field-stage) > * {
   flex-shrink: 0;
 }
 
@@ -1406,8 +1406,30 @@ label:focus-within:has(> .visually-hidden) {
   position: relative;
 }
 
+/* キャンバスと、そこに重ねる説明の置き場。残りの高さはこの枠が受け持つ */
+.field-stage {
+  position: relative;
+  flex: 1 0 0;
+  min-height: 240px;
+  display: flex;
+}
+
+.field-stage > .canvas-fit {
+  flex: 1 0 0;
+}
+
 .field-tapped {
-  margin-top: var(--space-3);
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  left: var(--space-3);
+  z-index: 1;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.15);
+}
+
+.field-tapped-top {
+  top: var(--space-3);
+  bottom: auto;
 }
 
 .field-tapped p {

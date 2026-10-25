@@ -34,7 +34,7 @@ import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import Loading from '../components/Loading.tsx'
 import { DisplayName, ProfileAvatar } from '../components/Profile.tsx'
 import WantButton from '../components/WantButton.tsx'
-import { NSID, type Did, type FieldPlacement, type Placement } from '../lexicon-types.ts'
+import { NSID, PLACEMENT_LIMITS, type Did, type FieldPlacement, type Placement } from '../lexicon-types.ts'
 
 const SAVE_DELAY_MS = 1000
 // Jetstream の取りこぼし（切れていたあいだ・署名を確かめていない中身）を PDS から読み直して正す間隔
@@ -594,54 +594,58 @@ export default function Field() {
         </div>
       )}
 
-      {canvasItems ? (
-        <BinderCanvas
-          items={canvasItems}
-          selectedId={selectedId}
-          onSelect={(id) => {
-            setSelectedId(id)
-            if (id) setTapped(undefined)
-          }}
-          onFront={bringToFront}
-          onChange={move}
-          onPeel={() => void peel()}
-          onTapLocked={(uri) => setTapped(items?.find((item) => item.uri === uri))}
-          board
-        />
-      ) : (
-        !error && <Loading />
-      )}
+      {/* タップした他人のピクルスの説明はキャンバスに重ねる（キャンバスの高さを減らさない） */}
+      <div className="field-stage">
+        {canvasItems ? (
+          <BinderCanvas
+            items={canvasItems}
+            selectedId={selectedId}
+            onSelect={(id) => {
+              setSelectedId(id)
+              if (id) setTapped(undefined)
+            }}
+            onFront={bringToFront}
+            onChange={move}
+            onPeel={() => void peel()}
+            onTapLocked={(uri) => setTapped(items?.find((item) => item.uri === uri))}
+            board
+          />
+        ) : (
+          !error && <Loading />
+        )}
 
-      {tapped && (
-        <div role="dialog" className="card field-tapped">
-          <p>
-            {tapped.owner === tapped.author ? (
-              <>{nameOf(tapped.author)} のピクルスです。</>
-            ) : (
-              <>
-                <Handle did={tapped.owner} /> のピクルスです（{nameOf(tapped.author)} が交換で受け取って貼りました）。
-              </>
-            )}
-            交換すると自分のビンに貼れます
-          </p>
-          <div className="field-tapped-actions">
-            {agent && me && <WantButton key={tapped.uri} agent={agent} did={me} subject={tapped.placement.sticker} />}
-            <button type="button" className="btn btn-primary" onClick={() => navigate('/exchange')}>
-              交換する
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => navigate(`/sticker/${encodeURIComponent(tapped.owner)}/${encodeURIComponent(new AtUri(tapped.placement.sticker.uri).rkey)}`)}
-            >
-              詳細
-            </button>
-            <button type="button" className="btn" onClick={() => setTapped(undefined)}>
-              閉じる
-            </button>
+        {tapped && (
+          // 下半分のピクルスなら説明を上端に出し、タップしたピクルスを隠さない
+          <div role="dialog" className={tapped.placement.y > PLACEMENT_LIMITS.position.full / 2 ? 'card field-tapped field-tapped-top' : 'card field-tapped'}>
+            <p>
+              {tapped.owner === tapped.author ? (
+                <>{nameOf(tapped.author)} のピクルスです。</>
+              ) : (
+                <>
+                  <Handle did={tapped.owner} /> のピクルスです（{nameOf(tapped.author)} が交換で受け取って貼りました）。
+                </>
+              )}
+              交換すると自分のビンに貼れます
+            </p>
+            <div className="field-tapped-actions">
+              {agent && me && <WantButton key={tapped.uri} agent={agent} did={me} subject={tapped.placement.sticker} />}
+              <button type="button" className="btn btn-primary" onClick={() => navigate('/exchange')}>
+                交換する
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => navigate(`/sticker/${encodeURIComponent(tapped.owner)}/${encodeURIComponent(new AtUri(tapped.placement.sticker.uri).rkey)}`)}
+              >
+                詳細
+              </button>
+              <button type="button" className="btn" onClick={() => setTapped(undefined)}>
+                閉じる
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {member && (
         <div className="binder-dock">
