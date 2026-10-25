@@ -14,6 +14,12 @@
             "type": "array",
             "items": { "type": "ref", "ref": "#placement" }
           },
+          "brine": {
+            "type": "string",
+            "description": "ページの漬け液（背景の色）。無いときや知らない値は dill",
+            "knownValues": ["dill", "ume", "beet", "curry"],
+            "maxLength": 32
+          },
           "updatedAt": { "type": "string", "format": "datetime" }
         }
       }

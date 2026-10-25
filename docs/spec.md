@@ -79,6 +79,7 @@ Blueskyのオリジナルテーマ「ATプロトコルを使って、人と人�
 4. 揺れは表示だけ。保存する配置（`binder.page` の x・y・拡大・回転）には入れない。触っている（選んでいる）ステッカーは揺らさない
 5. 端末で「視差効果を減らす」（`prefers-reduced-motion`）がオンなら揺らさない
 6. 共同フィールド（S8）のキャンバスは今までどおりで、揺らさない
+7. ページごとに漬け液（dill・ume・beet・curry）を選べる。binder.page の brine に残す（2026-10-26追加）
 
 ## 5. データ設計（AT Protocol）
 
@@ -105,6 +106,7 @@ app.<ns>.binder.page      シール帳の1ページ（rkey: ページ番号）
     scale     int       1000で等倍。100〜5000（0.1倍〜5倍）
     rotation  int       度（時計回り）。-180〜180
     z         int       重なり順。0以上、大きいほど上
+  brine      string    任意。漬け液（背景の色）。knownValues: dill・ume・beet・curry、最大32。無いときや知らない値は dill（2026-10-26追加）
   updatedAt  datetime
 
 app.<ns>.exchange         交換の記録（2人がそれぞれ自分のPDSに書く）

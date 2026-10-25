@@ -242,18 +242,35 @@ export async function listPageNumbers(agent: Agent, did: Did): Promise<number[]>
   return numbers.length > 0 ? numbers : [1]
 }
 
-/** ページの配置。まだ保存していないページは空 */
-export async function getPage(agent: Agent, did: Did, page: number): Promise<Placement[]> {
+/** 漬け液（ページの背景の色）。先頭が既定 */
+export const BRINES = ['dill', 'ume', 'beet', 'curry'] as const
+export type Brine = (typeof BRINES)[number]
+
+/** 保存されている brine を表示に使う値にする。無いときや知らない値は dill */
+export function toBrine(value: string | undefined): Brine {
+  return BRINES.find((b) => b === value) ?? 'dill'
+}
+
+export interface PageContent {
+  placements: Placement[]
+  /** 保存されている値のまま（知らない値も、保存し直すときに消さないよう残す） */
+  brine?: string
+}
+
+/** ページの配置と漬け液。まだ保存していないページは空 */
+export async function getPage(agent: Agent, did: Did, page: number): Promise<PageContent> {
   try {
     const { data } = await agent.com.atproto.repo.getRecord({ repo: did, collection: NSID.binderPage, rkey: String(page) })
-    return (data.value as unknown as BinderPage).placements ?? []
+    const value = data.value as unknown as BinderPage
+    return { placements: value.placements ?? [], brine: typeof value.brine === 'string' ? value.brine : undefined }
   } catch (e) {
-    if ((e as { error?: unknown }).error === 'RecordNotFound') return []
+    if ((e as { error?: unknown }).error === 'RecordNotFound') return { placements: [] }
     throw e
   }
 }
 
-export async function putPage(agent: Agent, did: Did, page: number, placements: Placement[]): Promise<void> {
-  const record: BinderPage = { $type: NSID.binderPage, placements, updatedAt: new Date().toISOString() }
+/** brine が undefined なら書かない（選んでいない古いページはそのまま） */
+export async function putPage(agent: Agent, did: Did, page: number, placements: Placement[], brine?: string): Promise<void> {
+  const record: BinderPage = { $type: NSID.binderPage, placements, ...(brine !== undefined && { brine }), updatedAt: new Date().toISOString() }
   await agent.com.atproto.repo.putRecord({ repo: did, collection: NSID.binderPage, rkey: String(page), record: { ...record } })
 }

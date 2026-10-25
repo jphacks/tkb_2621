@@ -1,6 +1,6 @@
 // ビンの1ページを PNG にする（spec 3章 #15）。画像は端末の中で作り、サーバーには送らない。
 // 描くのは漬け液の背景・泡・貼ったピクルス・右下のロゴだけ。交換相手のハンドルや場面は入れない（相手の同意なく外の SNS に出さないため）。
-import { BASE_SIZE_RATIO, PAGE_ASPECT, fromPlacement } from '../api/binder.ts'
+import { BASE_SIZE_RATIO, PAGE_ASPECT, fromPlacement, type Brine } from '../api/binder.ts'
 import type { CanvasItem } from './BinderCanvas.tsx'
 import { BUBBLES } from './jarBubbles.ts'
 
@@ -31,7 +31,7 @@ async function loadSvg(src: string): Promise<HTMLImageElement> {
   return img
 }
 
-export async function renderBinderPage(items: CanvasItem[]): Promise<Blob> {
+export async function renderBinderPage(items: CanvasItem[], brine: Brine): Promise<Blob> {
   const drawn = [...items].filter((item) => item.imageUrl).sort((a, b) => a.placement.z - b.placement.z)
   const fontDisplay = cssVar('--font-display')
   const fontBase = cssVar('--font-base')
@@ -49,12 +49,12 @@ export async function renderBinderPage(items: CanvasItem[]): Promise<Blob> {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('canvas を使えませんでした')
 
-  // 漬け液。CSS（.binder-jar）と同じく、画面の地の色の上に半透明の緑のグラデーションを重ねる
+  // 漬け液。CSS（.binder-jar）と同じく、画面の地の色の上に半透明の漬け液のグラデーションを重ねる
   ctx.fillStyle = cssVar('--color-bg')
   ctx.fillRect(0, 0, WIDTH, HEIGHT)
   const jar = ctx.createLinearGradient(0, 0, 0, HEIGHT)
-  jar.addColorStop(0, cssVar('--color-jar-from'))
-  jar.addColorStop(1, cssVar('--color-jar-to'))
+  jar.addColorStop(0, cssVar(`--brine-${brine}-top`))
+  jar.addColorStop(1, cssVar(`--brine-${brine}-bottom`))
   ctx.fillStyle = jar
   ctx.fillRect(0, 0, WIDTH, HEIGHT)
 

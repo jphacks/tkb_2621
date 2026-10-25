@@ -1,11 +1,12 @@
 // S4 シール帳。手持ちのステッカーをページに貼り、動かし終わって1秒たったら binder.page に保存する。
+// ページごとに漬け液（背景の色）を選べ、配置と一緒に binder.page の brine に保存する。
 // 選んだものは角の × でページから外せる（ステッカー本体は消さない）。削除されたステッカーの配置は保存のときに落とす。
 // 手持ちのステッカーは長押しするとステッカー詳細へ跳ぶ。
 // 前に開いたときの手持ちと配置があればまずそれを出し、裏で読み直す。
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
 import { AtUri } from '@atproto/api'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
-import { centerPlacement, findDeletedStickers, getPage, listOwnedStickers, listPageNumbers, putPage, type OwnedSticker } from '../api/binder.ts'
+import { BRINES, centerPlacement, findDeletedStickers, getPage, listOwnedStickers, listPageNumbers, putPage, toBrine, type Brine, type OwnedSticker } from '../api/binder.ts'
 import { readCache, writeCache } from '../api/screenCache.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import { ProfileAvatar } from '../components/Profile.tsx'
@@ -43,6 +44,17 @@ function pageCacheKey(did: string | undefined, page: number | undefined): string
   return did && page !== undefined ? `binder-page:${did}:${page}` : undefined
 }
 
+function brineCacheKey(did: string | undefined, page: number | undefined): string | undefined {
+  return did && page !== undefined ? `binder-brine:${did}:${page}` : undefined
+}
+
+const BRINE_LABEL: Record<Brine, string> = {
+  dill: 'ディル',
+  ume: '梅',
+  beet: 'ビーツ',
+  curry: 'カレー',
+}
+
 function stickerPath(uri: string): string {
   const at = new AtUri(uri)
   return `/sticker/${encodeURIComponent(at.host)}/${encodeURIComponent(at.rkey)}`
@@ -71,6 +83,8 @@ export default function Binder() {
   const [pages, setPages] = useState(() => readCache<number[]>(did && `binder-pages:${did}`))
   const [pageIndex, setPageIndex] = useState(0)
   const [items, setItems] = useState(() => toItems(readCache<Placement[]>(pageCacheKey(did, pages?.[0]))))
+  // 保存されている漬け液の値のまま（無ければ undefined。表示は toBrine で dill になる）
+  const [brine, setBrine] = useState(() => readCache<string>(brineCacheKey(did, pages?.[0])))
   const [pageError, setPageError] = useState<string>()
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [selectedId, setSelectedId] = useState<string>()
@@ -91,11 +105,13 @@ export default function Binder() {
   }, [did, pages])
 
   useEffect(() => {
-    if (items) writeCache(pageCacheKey(did, page), items.map((item) => item.placement))
-  }, [did, page, items])
+    if (!items) return
+    writeCache(pageCacheKey(did, page), items.map((item) => item.placement))
+    writeCache(brineCacheKey(did, page), brine)
+  }, [did, page, items, brine])
 
   // ---- 保存（最後に動かしてから1秒後。ページを替える・アプリを閉じるときはすぐ） ----
-  const pending = useRef<{ page: number; placements: Placement[] } | undefined>(undefined)
+  const pending = useRef<{ page: number; placements: Placement[]; brine?: string } | undefined>(undefined)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const flush = useCallback(async () => {
@@ -105,7 +121,7 @@ export default function Binder() {
     pending.current = undefined
     setSaveState('saving')
     try {
-      await putPage(agent, did, job.page, job.placements)
+      await putPage(agent, did, job.page, job.placements, job.brine)
       setSaveState((s) => (pending.current ? s : 'saved'))
     } catch {
       // 新しい変更が無ければ、次の変更や画面を閉じるときに保存し直す
@@ -114,10 +130,11 @@ export default function Binder() {
     }
   }, [agent, did])
 
-  function schedule(pageNumber: number, next: PageItem[]) {
+  function schedule(pageNumber: number, next: PageItem[], nextBrine: string | undefined) {
     pending.current = {
       page: pageNumber,
       placements: next.map((item) => item.placement).filter((p) => !deletedStickers.current.has(p.sticker.uri)),
+      brine: nextBrine,
     }
     clearTimeout(timer.current)
     timer.current = setTimeout(() => void flush(), SAVE_DELAY_MS)
@@ -157,9 +174,12 @@ export default function Binder() {
     if (!agent || !did || page === undefined) return
     let cancelled = false
     getPage(agent, did, page)
-      .then((placements) => {
+      .then(({ placements, brine: savedBrine }) => {
         if (cancelled) return
-        if (!touched.current) setItems(toItems(placements))
+        if (!touched.current) {
+          setItems(toItems(placements))
+          setBrine(savedBrine)
+        }
         // 表示とは別に、ステッカーが削除されたかを確かめておく（一時的に読めないだけのものは残す）
         void findDeletedStickers(placements.map((p) => p.sticker)).then((uris) => uris.forEach((uri) => deletedStickers.current.add(uri)))
       })
@@ -184,7 +204,17 @@ export default function Binder() {
     shareFile.current = undefined
     setShareState('idle')
     setItems(next)
-    schedule(page, next)
+    schedule(page, next, brine)
+  }
+
+  /** 漬け液を替える。配置はそのままで、配置を動かしたときと同じく1秒後に保存する */
+  function chooseBrine(next: Brine) {
+    if (page === undefined || !items || next === toBrine(brine)) return
+    touched.current = true
+    shareFile.current = undefined
+    setShareState('idle')
+    setBrine(next)
+    schedule(page, items, next)
   }
 
   function maxZ(list: PageItem[]): number {
@@ -248,7 +278,7 @@ export default function Binder() {
     if (!file) {
       setShareState('making')
       try {
-        file = new File([await renderBinderPage(canvasItems)], `pikkles-bin-${pageIndex + 1}.png`, { type: 'image/png' })
+        file = new File([await renderBinderPage(canvasItems, toBrine(brine))], `pikkles-bin-${pageIndex + 1}.png`, { type: 'image/png' })
       } catch (e) {
         setShareState('idle')
         setShareError(`画像を作れませんでした：${errorMessage(e)}`)
@@ -287,6 +317,7 @@ export default function Binder() {
     setShareState('idle')
     setSelectedId(undefined)
     setItems(toItems(readCache<Placement[]>(pageCacheKey(did, pages?.[index]))))
+    setBrine(readCache<string>(brineCacheKey(did, pages?.[index])))
     setPageError(undefined)
     setPageIndex(index)
   }
@@ -308,6 +339,7 @@ export default function Binder() {
     setShareState('idle')
     setSelectedId(undefined)
     setItems(undefined)
+    setBrine(undefined)
     setPageIndex(pages.length)
   }
 
@@ -352,6 +384,21 @@ export default function Binder() {
           +
         </button>
       </div>
+      <div className="binder-brine" role="radiogroup" aria-label="漬け液">
+        {BRINES.map((b) => (
+          <button
+            key={b}
+            type="button"
+            role="radio"
+            aria-checked={toBrine(brine) === b}
+            aria-label={BRINE_LABEL[b]}
+            className="binder-brine-option"
+            data-brine={b}
+            onClick={() => chooseBrine(b)}
+            disabled={!items}
+          />
+        ))}
+      </div>
 
       {pageError && <p role="alert">{pageError}</p>}
       {shareError && <p role="alert">{shareError}</p>}
@@ -361,7 +408,7 @@ export default function Binder() {
         </p>
       )}
       {canvasItems ? (
-        <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} onPeel={peel} jar />
+        <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} onPeel={peel} jar brine={toBrine(brine)} />
       ) : (
         !pageError && <Loading />
       )}
