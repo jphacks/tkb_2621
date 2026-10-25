@@ -322,7 +322,6 @@ export default function Binder() {
             </svg>
             一覧
           </Link>
-          {owned && owned.length > 0 && <span className="binder-hand-hint">{owned.length}枚・タップして貼る・長押しで詳しく</span>}
         </div>
         {ownedError && <p role="alert">手持ちを読めませんでした：{ownedError}</p>}
         {!owned && !ownedError && <p className="text-muted">読み込み中…</p>}
