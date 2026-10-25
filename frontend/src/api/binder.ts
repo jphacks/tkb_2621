@@ -132,6 +132,11 @@ function sameRef(a: StrongRef | undefined, b: StrongRef | undefined): boolean {
   return !!a && !!b && a.uri === b.uri && a.cid === b.cid
 }
 
+/** me の記録 mine と相手の記録 theirs が、同じ交換の対になっていれば true（spec 6章の成立条件1〜4） */
+function isPair(mine: Exchange, theirs: Exchange, me: Did): boolean {
+  return theirs.sessionId === mine.sessionId && theirs.partner === me && sameRef(theirs.gave, mine.received) && sameRef(theirs.received, mine.gave)
+}
+
 /**
  * 自分の PDS の exchange のうち、成立したもの。
  * 自分の PDS の記録だけでは成立したか分からない（照合の前に書くので、落ちても残る）。
@@ -165,19 +170,34 @@ export async function listEstablishedExchanges(agent: Agent, did: Did, filter?: 
         // 相手の PDS が読めなければ、その相手の分は出さない
         return []
       }
-      return exchanges
-        .filter((mineEx) =>
-          theirs.some(
-            ({ value: t }) =>
-              t.sessionId === mineEx.sessionId &&
-              t.partner === did &&
-              sameRef(t.gave, mineEx.received) &&
-              sameRef(t.received, mineEx.gave),
-          ),
-        )
+      return exchanges.filter((mineEx) => theirs.some(({ value: t }) => isPair(mineEx, t, did)))
     }),
   )
   return established.flat()
+}
+
+// 他人が交換で受け取ったかの確かめ（共同フィールドで、作った人と貼った人が違うもの）。
+// 交換は取り消せないので、成立していたものは覚えておく。成立していない・読めなかったものは次にまた確かめる
+const receivedChecks = new Map<string, Promise<boolean>>()
+
+/** holder が成立した交換で ref を受け取っていれば true。2人の PDS を公開 API で読む。読めなければ false */
+export function hasReceived(holder: Did, ref: StrongRef): Promise<boolean> {
+  const key = `${holder} ${ref.uri}#${ref.cid}`
+  const cached = receivedChecks.get(key)
+  if (cached) return cached
+  const result = (async () => {
+    const owner = new AtUri(ref.uri).host
+    if (owner === holder) return false
+    const mine = (await listPublicRecords<Exchange>(holder, NSID.exchange))
+      .map((r) => r.value)
+      .filter((ex) => ex.partner === owner && sameRef(ex.received, ref))
+    if (mine.length === 0) return false
+    const theirs = await listPublicRecords<Exchange>(owner, NSID.exchange)
+    return mine.some((m) => theirs.some(({ value: t }) => isPair(m, t, holder)))
+  })().catch(() => false)
+  receivedChecks.set(key, result)
+  void result.then((ok) => !ok && receivedChecks.delete(key))
+  return result
 }
 
 /** 成立した交換で受け取ったステッカーの strongRef */

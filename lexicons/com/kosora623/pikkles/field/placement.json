@@ -4,7 +4,7 @@
   "defs": {
     "main": {
       "type": "record",
-      "description": "共同フィールドへの貼り付け。貼った人のPDSに置く。貼れるのは自分のステッカーのみ。数値の単位は binder.page#placement と同じ。",
+      "description": "共同フィールドへの貼り付け。貼った人のPDSに置く。貼れるのは自分のステッカーと、成立した交換で受け取ったステッカー。数値の単位は binder.page#placement と同じ。",
       "key": "tid",
       "record": {
         "type": "object",
@@ -14,7 +14,7 @@
           "sticker": {
             "type": "ref",
             "ref": "com.atproto.repo.strongRef",
-            "description": "自分のステッカーのみ"
+            "description": "自分のステッカー、または成立した交換で受け取ったステッカー"
           },
           "x": {
             "type": "integer",
