@@ -32,8 +32,8 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })
 }
 
-/** 交換で渡した・受け取ったステッカー。削除されて読めなければ枠だけ出す */
-function TradeSticker({ sticker, label }: { sticker: StrongRef; label: string }) {
+/** 交換で渡した・受け取ったステッカー。押すとそのステッカーの詳細へ。削除されて読めなければ枠だけ出す */
+function TradeSticker({ sticker }: { sticker: StrongRef }) {
   const [record, setRecord] = useState<Sticker>()
 
   useEffect(() => {
@@ -47,12 +47,9 @@ function TradeSticker({ sticker, label }: { sticker: StrongRef; label: string })
   }, [sticker])
 
   return (
-    <figure className="timeline-trade-item">
-      <div className="timeline-trade-image">
-        {record && <StickerImage did={new AtUri(sticker.uri).host} sticker={record} maxHeight={53} />}
-      </div>
-      <figcaption>{label}</figcaption>
-    </figure>
+    <Link to={stickerPath(sticker.uri)} className="timeline-trade-item">
+      {record && <StickerImage did={new AtUri(sticker.uri).host} sticker={record} maxHeight={53} />}
+    </Link>
   )
 }
 
@@ -98,7 +95,7 @@ function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did 
     )
   }
   return (
-    <Link to={stickerPath(item.record.gave.uri)} className="card timeline-exchange">
+    <article className="card timeline-exchange">
       <span className="timeline-who timeline-who-lg">
         <Avatar did={item.author} size={30} />
         <span>
@@ -110,13 +107,13 @@ function Event({ item, agent, me }: { item: TimelineItem; agent: Agent; me: Did 
       </span>
       {item.record.occasion && <span className="tag tag-place">{item.record.occasion}</span>}
       <div className="timeline-trade">
-        <TradeSticker sticker={item.record.gave} label="渡した" />
+        <TradeSticker sticker={item.record.gave} />
         <span className="timeline-trade-arrow" aria-hidden="true">
           ⇔
         </span>
-        <TradeSticker sticker={item.record.received} label="受け取った" />
+        <TradeSticker sticker={item.record.received} />
       </div>
-    </Link>
+    </article>
   )
 }
 
