@@ -244,6 +244,12 @@ export async function removeOwnFieldRecords(agent: Agent, did: Did, fieldUri: st
   await Promise.all(members.filter((r) => r.value.field?.uri === fieldUri).map((r) => deleteOwnRecord(agent, did, r.uri)))
 }
 
+/** 作ったばかりで、サーバーに登録できなかった field を、自分の field.member ごと消す */
+export async function discardCreatedField(agent: Agent, did: Did, field: StrongRef): Promise<void> {
+  await removeOwnFieldRecords(agent, did, field.uri)
+  await deleteOwnRecord(agent, did, field.uri)
+}
+
 /** 抜ける。残りが0人になり（closed）、自分が作った人なら field 本体も消す */
 export async function leaveField(agent: Agent, did: Did, field: FieldView): Promise<FieldMembersResponse> {
   await removeOwnFieldRecords(agent, did, field.ref.uri)
