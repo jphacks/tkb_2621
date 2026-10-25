@@ -2,6 +2,7 @@
 import { AtUri, type Agent } from '@atproto/api'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import Avatar from './Avatar.tsx'
 import {
   commitExchange,
   openExchangeSocket,
@@ -36,6 +37,10 @@ function errorMessage(e: unknown): string {
 
 const IMAGE_SIZE = 96
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
 /** 交換成立後に「Blueskyでもフォローする？」と聞く（spec 3章 #13）。押したときだけフォローを書く。フォロー済みなら出さない */
 function FollowPrompt({ agent, did, partner, handle }: { agent: Agent; did: Did; partner: Did; handle?: string }) {
   const [state, setState] = useState<'checking' | 'ask' | 'following' | 'sending' | 'done' | 'error'>('checking')
@@ -62,19 +67,20 @@ function FollowPrompt({ agent, did, partner, handle }: { agent: Agent; did: Did;
   }
 
   if (state === 'checking' || state === 'following') return null
-  if (state === 'done') return <p>Blueskyでフォローしました</p>
+  if (state === 'done') return <p className="card exchange-follow">Blueskyでフォローしました</p>
   const name = handle ? `@${handle}` : partner
   return (
-    <p>
-      <button type="button" onClick={() => void onFollow()} disabled={state === 'sending'}>
-        Blueskyでも{name}さんをフォローする
+    <div className="card exchange-follow">
+      <span>Blueskyでも{name}さんをフォローする</span>
+      <button type="button" className="btn btn-primary" onClick={() => void onFollow()} disabled={state === 'sending'}>
+        フォローする
       </button>
       {state === 'error' && (
-        <small role="alert" style={{ display: 'block' }}>
+        <small role="alert" className="exchange-follow-error">
           フォローできませんでした。ログインし直すとできることがあります
         </small>
       )}
-    </p>
+    </div>
   )
 }
 
@@ -92,7 +98,7 @@ function PartnerMessage({ partner, sessionId }: { partner: Did; sessionId: strin
     }
   }, [partner, sessionId])
 
-  return message ? <p>相手からの一言：{message}</p> : null
+  return message ? <p className="card exchange-message">相手からの一言：{message}</p> : null
 }
 
 export default function ExchangeRoom(props: {
@@ -287,25 +293,30 @@ export default function ExchangeRoom(props: {
     ? myStickers && [...myStickers].sort((a, b) => Number(partnerWants.has(b.ref.uri)) - Number(partnerWants.has(a.ref.uri)))
     : myStickers
 
-  const header = (
+  const headerWith = (title: string) => (
     <>
       <div className="back-header">
         <Link to="/binder" className="icon-button" aria-label="ビンにもどる">
           <img src="/images/back.svg" alt="" width={13} height={18} />
         </Link>
-        <h1>対面で交換</h1>
+        <h1>{title}</h1>
       </div>
       {occasion && <p className="tag tag-place">{occasion}</p>}
     </>
   )
+  const header = headerWith('対面で交換')
 
   if (phase.kind === 'cancelled') {
     return (
       <>
         {header}
-        <p role="alert">キャンセルされました</p>
-        <p>{phase.reason}</p>
-        <Link to="/exchange">もう一度はじめる</Link>
+        <div role="alert" className="notice exchange-notice">
+          <p className="notice-title">キャンセルされました</p>
+          <p>{phase.reason}</p>
+        </div>
+        <Link to="/exchange" className="btn btn-primary btn-block exchange-bottom">
+          もう一度はじめる
+        </Link>
       </>
     )
   }
@@ -314,17 +325,21 @@ export default function ExchangeRoom(props: {
     const partner = phase.exchange?.partner ?? partnerDid
     const shownOccasion = phase.exchange ? phase.exchange.occasion : occasion
     return (
-      <>
-        <h1>交換成立</h1>
-        <p>相手：{partnerHandle ? `@${partnerHandle}` : partner}</p>
-        <p>場面：{shownOccasion || '（なし）'}</p>
-        {partnerImage && <img src={partnerImage} alt="受け取ったステッカー" width={IMAGE_SIZE * 2} />}
+      <div className="exchange-done">
+        <h1>交換成立!</h1>
+        {partnerImage && <img src={partnerImage} alt="受け取ったステッカー" width={IMAGE_SIZE * 2} className="exchange-done-image" />}
+        <p>{partnerHandle ? `@${partnerHandle}` : partner}とステッカーを交換しました</p>
+        <p className="exchange-done-meta">
+          {shownOccasion && <span className="tag tag-place">{shownOccasion}</span>}
+          {phase.exchange && <span>{formatDateTime(phase.exchange.createdAt)}</span>}
+        </p>
+        <p className="text-muted">この記録は2人それぞれのアカウントに残ります</p>
         {partner && <PartnerMessage partner={partner} sessionId={sessionId} />}
         {partner && <FollowPrompt agent={agent} did={did} partner={partner} handle={partnerHandle} />}
-        <p>
-          <Link to="/binder">シール帳へ</Link>
-        </p>
-      </>
+        <Link to="/binder" className="btn btn-primary btn-block exchange-bottom">
+          ビンへ
+        </Link>
+      </div>
     )
   }
 
@@ -332,8 +347,12 @@ export default function ExchangeRoom(props: {
     return (
       <>
         {header}
-        <p role="alert">このセッションには入れません（終わったか、参加していません）</p>
-        <Link to="/exchange">もう一度はじめる</Link>
+        <p role="alert" className="notice exchange-notice">
+          このセッションには入れません（終わったか、参加していません）
+        </p>
+        <Link to="/exchange" className="btn btn-primary btn-block exchange-bottom">
+          もう一度はじめる
+        </Link>
       </>
     )
   }
@@ -351,7 +370,9 @@ export default function ExchangeRoom(props: {
     return (
       <>
         {header}
-        <p>2人とも確定しました。交換を記録しています…</p>
+        <p role="status" className="exchange-progress">
+          2人とも確定しました。交換を記録しています…
+        </p>
       </>
     )
   }
@@ -360,8 +381,10 @@ export default function ExchangeRoom(props: {
     return (
       <>
         {header}
-        <p>相手の記録待ち…</p>
-        <button type="button" onClick={() => void sendCommit(phase.uri)}>
+        <p role="status" className="exchange-progress">
+          相手の記録待ち…
+        </p>
+        <button type="button" className="btn btn-block" onClick={() => void sendCommit(phase.uri)}>
           もう一度確かめる
         </button>
       </>
@@ -373,14 +396,17 @@ export default function ExchangeRoom(props: {
     return (
       <>
         {header}
-        <p role="alert">交換が成立しませんでした：{phase.reason}</p>
+        <p role="alert" className="notice exchange-notice">
+          交換が成立しませんでした：{phase.reason}
+        </p>
         {uri ? (
-          <button type="button" onClick={() => void sendCommit(uri)}>
+          <button type="button" className="btn btn-primary btn-block" onClick={() => void sendCommit(uri)}>
             もう一度送る
           </button>
         ) : (
           <button
             type="button"
+            className="btn btn-primary btn-block"
             onClick={() => {
               recordStarted.current = true
               void record(latest.current.occasion)
@@ -395,29 +421,30 @@ export default function ExchangeRoom(props: {
 
   return (
     <>
-      {header}
-      <p>相手：{partnerHandle ? `@${partnerHandle}` : (partnerDid ?? '参加しました')}</p>
+      {headerWith('渡す一枚を選ぶ')}
 
-      <h2>相手が選んだステッカー</h2>
-      {partnerRef ? (
-        partnerImage ? (
-          <img src={partnerImage} alt="相手が選んだステッカー" width={IMAGE_SIZE * 2} />
-        ) : (
-          <p>読み込み中…</p>
-        )
-      ) : (
-        <p>相手が選ぶのを待っています…</p>
-      )}
+      <div className="card exchange-partner">
+        <div className="exchange-partner-info">
+          <span className="exchange-partner-name">
+            {partnerDid && <Avatar did={partnerDid} size={31} />}
+            {partnerHandle ? `@${partnerHandle}` : (partnerDid ?? '参加しました')}
+          </span>
+          <span className="exchange-hint">{partnerRef ? '相手はこの1枚を選びました' : '相手が選ぶのを待っています…'}</span>
+        </div>
+        <div className="exchange-partner-pick">
+          {partnerRef && (partnerImage ? <img src={partnerImage} alt="相手が選んだステッカー" /> : <span className="text-muted">読み込み中…</span>)}
+        </div>
+      </div>
 
-      <h2>渡すステッカーを1枚選ぶ</h2>
+      <h2 className="exchange-mine-title">あなたのステッカー</h2>
       {loadError && <p role="alert">ステッカーを読めませんでした：{loadError}</p>}
-      {!myStickers && !loadError && <p>読み込み中…</p>}
+      {!myStickers && !loadError && <p className="text-muted">読み込み中…</p>}
       {myStickers?.length === 0 && (
         <p>
           ステッカーがありません。<Link to="/capture">撮影する</Link>
         </p>
       )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      <div className="exchange-mine">
         {sortedStickers?.map((item) => {
           const isSelected = selected?.uri === item.ref.uri
           const wanted = partnerWants?.has(item.ref.uri) ?? false
@@ -425,23 +452,25 @@ export default function ExchangeRoom(props: {
             <button
               key={item.ref.uri}
               type="button"
+              className={isSelected ? 'exchange-mine-item selected' : 'exchange-mine-item'}
               onClick={() => select(item.ref)}
               disabled={confirmed}
               aria-pressed={isSelected}
-              style={{ position: 'relative', padding: 4, border: isSelected ? '3px solid #e91e63' : '3px solid transparent' }}
             >
-              <img src={item.imageUrl} alt={item.sticker.caption ?? 'ステッカー'} width={IMAGE_SIZE} height={IMAGE_SIZE} style={{ objectFit: 'contain' }} />
-              {wanted && (
-                <span style={{ position: 'absolute', top: 2, left: 2, fontSize: 11, padding: '1px 4px', borderRadius: 8, background: '#e91e63', color: '#fff' }}>
-                  ♥ 相手がほしい
+              <img src={item.imageUrl} alt={item.sticker.caption ?? 'ステッカー'} width={IMAGE_SIZE} height={IMAGE_SIZE} />
+              {wanted && <span className="tag exchange-wanted">♥ 相手がほしい</span>}
+              {isSelected && (
+                <span className="exchange-check" aria-hidden="true">
+                  ✓
                 </span>
               )}
             </button>
           )
         })}
       </div>
+      <p className="exchange-hint">渡せるのは自分で作ったステッカーだけです</p>
 
-      <label className="exchange-occasion">
+      <label className="exchange-occasion exchange-message-input">
         相手にひとこと（任意）
         <input type="text" className="input" value={message} onChange={(e) => setMessage(e.target.value)} disabled={confirmed} />
       </label>
@@ -452,12 +481,12 @@ export default function ExchangeRoom(props: {
         </span>
       </p>
 
-      <p>
-        <button type="button" onClick={confirm} disabled={!selected || !partnerRef || confirmed || messageTooLong}>
-          {confirmed ? '確定しました' : '確定'}
-        </button>
+      <p className="exchange-hint exchange-confirm-hint">
+        {confirmed ? '相手の確定を待っています…' : '2人とも確定すると交換が成立します'}
       </p>
-      {confirmed && <p>相手の確定を待っています…</p>}
+      <button type="button" className="btn btn-primary btn-block exchange-pick" onClick={confirm} disabled={!selected || !partnerRef || confirmed || messageTooLong}>
+        {confirmed ? '確定しました' : 'Pick!'}
+      </button>
     </>
   )
 }
