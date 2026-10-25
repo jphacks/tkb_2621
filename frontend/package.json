@@ -12,6 +12,7 @@
   "dependencies": {
     "@atproto/api": "^0.29.3",
     "@atproto/oauth-client-browser": "^0.5.10",
+    "jsqr": "^1.4.0",
     "konva": "^10.9.0",
     "qrcode": "^1.5.4",
     "react": "^19.3.1",

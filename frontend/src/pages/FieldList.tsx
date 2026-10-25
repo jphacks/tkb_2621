@@ -11,9 +11,23 @@ import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
+import QrScanner from '../components/QrScanner.tsx'
 
 function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
+}
+
+/** 読んだ QR が Pikkles の招待 URL（inviteUrl）なら、開く先のパスを返す。ほかのサイトの URL は開かない */
+function invitePath(text: string): string | undefined {
+  let url: URL
+  try {
+    url = new URL(text)
+  } catch {
+    return undefined
+  }
+  if (url.origin !== window.location.origin || url.pathname !== '/fields/join') return undefined
+  if (!url.searchParams.get('uri') || !url.searchParams.get('cid')) return undefined
+  return `${url.pathname}${url.search}`
 }
 
 export default function FieldList() {
@@ -28,8 +42,9 @@ export default function FieldList() {
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string>()
-  // 「新しく作る」の入力欄と「招待QRを読む」の案内は、ボタンを押したときだけ開く
+  // 「新しく作る」の入力欄と「招待QRを読む」のカメラは、ボタンを押したときだけ開く
   const [panel, setPanel] = useState<'create' | 'scan'>()
+  const [scanError, setScanError] = useState<string>()
 
   useEffect(() => {
     if (!agent || !did) return
@@ -73,6 +88,16 @@ export default function FieldList() {
     }
   }
 
+  function onScan(text: string): boolean {
+    const path = invitePath(text)
+    if (!path) {
+      setScanError('共同フィールドの招待 QR ではありません')
+      return false
+    }
+    navigate(path)
+    return true
+  }
+
   return (
     <>
       <PageHeader title="共同フィールド" />
@@ -105,16 +130,16 @@ export default function FieldList() {
       )}
 
       {panel === 'scan' && (
-        <div className="notice field-create">
-          <p className="notice-title">招待 QR を iPhone のカメラで読み取ってください</p>
-          <p>カメラアプリを開いて招待 QR に向けると、共同フィールドに参加するページが開きます</p>
+        <div className="field-create">
+          <QrScanner hint="招待 QR を枠の中に" onResult={onScan} />
+          {scanError && <p role="alert">{scanError}</p>}
         </div>
       )}
 
       <h2 className="field-list-title">参加中</h2>
       {listError && <p role="alert">読めませんでした：{listError}</p>}
       {!fields && !listError && <Loading />}
-      {fields?.length === 0 && <p className="text-muted">まだ参加していません。作るか、招待 QR を iPhone のカメラで読んでください</p>}
+      {fields?.length === 0 && <p className="text-muted">まだ参加していません。作るか、招待 QR を読んでください</p>}
       <ul className="field-list">
         {fields?.map((joined) => (
           <li key={joined.uri}>
