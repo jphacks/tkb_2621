@@ -1,7 +1,7 @@
 # Pikkles（ピクルス）
 URL : https://pikkles.kosora623.com/login
-<!-- デモ動画ができたら、サムネイル画像と YouTube のリンクに差し替える -->
-[![Pikkles デモ動画](frontend/public/images/ogp.png)
+
+![Pikkles デモ動画](frontend/public/images/ogp.png)
 
 ## 製品概要
 ### 背景(製品開発のきっかけ、課題等）
