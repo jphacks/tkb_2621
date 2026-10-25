@@ -35,13 +35,20 @@ export async function renderBinderPage(items: CanvasItem[], brine: Brine): Promi
   const drawn = [...items].filter((item) => item.imageUrl).sort((a, b) => a.placement.z - b.placement.z)
   const fontDisplay = cssVar('--font-display')
   const fontBase = cssVar('--font-base')
-  const [stickers, bubbles, logo] = await Promise.all([
-    Promise.all(drawn.map((item) => loadBitmap(item.imageUrl as string))),
+  const [loaded, bubbles, logo] = await Promise.all([
+    // 読めなかったピクルス（相手の PDS が落ちている など）は描かずに飛ばす。全部読めなかったときだけエラーにする
+    Promise.allSettled(drawn.map((item) => loadBitmap(item.imageUrl as string))),
     Promise.all(BUBBLES.map((b) => loadSvg(b.src))),
     loadBitmap('/images/logo.png'),
     document.fonts.load(`48px ${fontDisplay}`, 'Pikkles'),
     document.fonts.load(`28px ${fontBase}`, SITE),
   ])
+  const stickers = loaded.map((r) => (r.status === 'fulfilled' ? r.value : undefined))
+  const failed = loaded.find((r) => r.status === 'rejected')
+  if (failed && stickers.every((s) => s === undefined)) {
+    logo.close()
+    throw failed.reason
+  }
 
   const canvas = document.createElement('canvas')
   canvas.width = WIDTH
@@ -66,6 +73,8 @@ export async function renderBinderPage(items: CanvasItem[], brine: Brine): Promi
 
   // 保存されている配置どおりに描く（BinderCanvas の StickerNode と同じ計算）。揺れは入れない
   drawn.forEach((item, i) => {
+    const bitmap = stickers[i]
+    if (!bitmap) return
     const view = fromPlacement(item.placement, WIDTH)
     const k = (WIDTH * BASE_SIZE_RATIO) / Math.max(item.width, item.height)
     const w = item.width * k
@@ -74,7 +83,7 @@ export async function renderBinderPage(items: CanvasItem[], brine: Brine): Promi
     ctx.translate(view.x, view.y)
     ctx.rotate((view.rotation * Math.PI) / 180)
     ctx.scale(view.scale, view.scale)
-    ctx.drawImage(stickers[i], -w / 2, -h / 2, w, h)
+    ctx.drawImage(bitmap, -w / 2, -h / 2, w, h)
     ctx.restore()
   })
 
@@ -93,7 +102,7 @@ export async function renderBinderPage(items: CanvasItem[], brine: Brine): Promi
   const titleWidth = ctx.measureText('Pikkles').width
   ctx.drawImage(logo, WIDTH - margin - titleWidth - 8 - logoSize, titleBaseline - logoSize + 10, logoSize, logoSize)
 
-  for (const bitmap of [...stickers, logo]) bitmap.close()
+  for (const bitmap of [...stickers, logo]) bitmap?.close()
 
   return new Promise((resolve, reject) => {
     // canvas の PNG には EXIF などのメタデータは入らない
