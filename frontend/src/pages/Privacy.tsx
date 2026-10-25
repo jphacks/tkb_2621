@@ -111,7 +111,7 @@ export default function Privacy() {
           <tr>
             <td>アクセスの記録（IP アドレス、日時、開いた URL、DID を含むエラーの記録）</td>
             <td>不具合の調査と不正な利用への対応のため</td>
-            <td>ホスティング事業者の保存期間に従います【Render のログ保存期間を確認して書く】</td>
+            <td>ホスティング事業者（Render）の保存期間に従います</td>
           </tr>
         </tbody>
       </table>
@@ -171,7 +171,7 @@ export default function Privacy() {
         </tbody>
       </table>
       <p>
-        これらの国の個人情報の保護の制度は、個人情報保護委員会の「外国における個人情報の保護に関する制度等の調査」で確認できます。【リンクを貼る】
+        これらの国の個人情報の保護の制度は、個人情報保護委員会の「外国における個人情報の保護に関する制度等の調査」で確認できます。
       </p>
 
       <h2>6. 安全のために行っていること</h2>
@@ -218,11 +218,7 @@ export default function Privacy() {
       <p>
         Pikkles 開発チーム（JPHACKS 2026 出場チーム）
         <br />
-        代表：【氏名】
-        <br />
         連絡先：<a href="mailto:pikkles.jp@gmail.com">pikkles.jp@gmail.com</a>
-        <br />
-        所在地：【開示の請求があれば遅滞なくお知らせします、などの扱いを決める】
       </p>
 
       <h2>11. 変更</h2>
