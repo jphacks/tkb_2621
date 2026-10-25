@@ -554,10 +554,13 @@ export default function Field() {
               <ul>
                 {members.map((d) => (
                   <li key={d}>
-                    <ProfileAvatar did={d} size={32} />
-                    <span className="field-members-name">
-                      <DisplayName did={d} />
-                    </span>
+                    {/* Bluesky のプロフィールを別のタブで開く（ステッカー詳細と同じ） */}
+                    <a className="field-members-link" href={`https://bsky.app/profile/${d}`} target="_blank" rel="noopener noreferrer">
+                      <ProfileAvatar did={d} size={32} />
+                      <span className="field-members-name">
+                        <DisplayName did={d} />
+                      </span>
+                    </a>
                   </li>
                 ))}
               </ul>
