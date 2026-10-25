@@ -2124,3 +2124,117 @@ label:focus-within:has(> .visually-hidden) {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* 利用規約・プライバシーポリシーへのリンク（ログイン画面・アカウント画面） */
+.login-legal,
+.account-legal {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.login-legal a {
+  color: inherit;
+}
+
+.account-legal {
+  margin-top: var(--space-5);
+}
+
+.account-legal a {
+  color: var(--color-text-muted);
+}
+
+/* 初回の同意の画面 */
+.consent-card {
+  border: 1px solid var(--color-border-input);
+}
+
+.consent-lead {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.consent-links {
+  display: flex;
+  gap: var(--space-4);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.consent-links a {
+  color: var(--color-accent);
+}
+
+.consent-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-5) 0 var(--space-2);
+  cursor: pointer;
+}
+
+.consent-check input {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
+/* 利用規約・プライバシーポリシーの本文。スマホ幅でも横にはみ出さない */
+.legal {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.legal h2 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+}
+
+.legal h3 {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.legal p {
+  margin: 0 0 var(--space-2);
+}
+
+.legal ol,
+.legal ul {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-5);
+}
+
+.legal a {
+  color: var(--color-accent);
+}
+
+.legal table {
+  width: 100%;
+  margin: 0 0 var(--space-3);
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: var(--color-surface);
+  font-size: var(--font-size-md);
+}
+
+.legal th,
+.legal td {
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.legal th {
+  background: var(--color-surface-muted);
+  font-weight: var(--font-weight-semibold);
+}
