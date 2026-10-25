@@ -1,10 +1,11 @@
-// S3 撮影・ステッカー化。画像を選ぶ → /cutout でステッカーにする → 公開の確認をして PDS に保存する。
+// S3 撮影・ステッカー化。画像を選ぶ → トリミングする → /cutout でステッカーにする → 公開の確認をして PDS に保存する。
 import { useState, type ChangeEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { cutout, type CutoutResponse } from '../api/backend.ts'
 import { CAPTION_MAX, countGraphemes, createSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
+import ImageTrimmer from '../components/ImageTrimmer.tsx'
 import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 import WebcamCapture from '../components/WebcamCapture.tsx'
@@ -14,6 +15,7 @@ type Source = Sticker['source']
 
 type Step =
   | { kind: 'choose' }
+  | { kind: 'trim'; source: Source; file: File }
   | { kind: 'cutting' }
   | { kind: 'preview'; source: Source; result: CutoutResponse; png: Blob }
   | { kind: 'saving'; source: Source; result: CutoutResponse; png: Blob }
@@ -45,14 +47,19 @@ export default function Capture() {
     const file = e.target.files?.[0]
     // 同じファイルを選び直しても onChange が走るように空にしておく
     e.target.value = ''
-    if (file) void makeSticker(file, source)
+    if (file) trim(file, source)
   }
 
-  async function makeSticker(file: File, source: Source) {
+  function trim(file: File, source: Source) {
     if (source === 'illustration' && file.type !== 'image/png') {
       setError('イラストは PNG を選んでください')
       return
     }
+    setError(undefined)
+    setStep({ kind: 'trim', source, file })
+  }
+
+  async function makeSticker(file: File, source: Source) {
     setError(undefined)
     setStep({ kind: 'cutting' })
     try {
@@ -90,6 +97,24 @@ export default function Capture() {
       setConfirmed(false)
       setStep({ ...step, kind: 'preview' })
     }
+  }
+
+  if (step.kind === 'trim') {
+    return (
+      <>
+        <div className="back-header">
+          <button type="button" className="icon-button" onClick={reset} aria-label="選び直す">
+            <img src="/images/back.svg" alt="" width={13} height={18} />
+          </button>
+          <h1>トリミング</h1>
+        </div>
+        <ImageTrimmer
+          file={step.file}
+          keepTransparency={step.source === 'illustration'}
+          onDone={(file) => void makeSticker(file, step.source)}
+        />
+      </>
+    )
   }
 
   if (step.kind === 'cutting') {
@@ -164,7 +189,7 @@ export default function Capture() {
       </div>
 
       {mode === 'camera' ? (
-        <WebcamCapture onCapture={(file) => void makeSticker(file, 'photo')} />
+        <WebcamCapture onCapture={(file) => trim(file, 'photo')} />
       ) : (
         <div className="capture-files">
           <section className="card">
