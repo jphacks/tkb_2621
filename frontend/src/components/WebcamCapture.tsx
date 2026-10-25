@@ -10,16 +10,20 @@ function cameraErrorMessage(e: unknown): string {
   return `カメラを開けませんでした：${e instanceof Error ? e.message : String(e)}`
 }
 
+/** 型の上では必ずあるが、http で開いたときや古いブラウザでは mediaDevices が無い */
+function canUseCamera(): boolean {
+  return typeof navigator.mediaDevices?.getUserMedia === 'function'
+}
+
 export default function WebcamCapture({ onCapture }: { onCapture: (file: File) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [ready, setReady] = useState(false)
-  const [error, setError] = useState<string>()
+  const [error, setError] = useState<string | undefined>(() =>
+    canUseCamera() ? undefined : 'このブラウザでは画面の中にカメラを映せません',
+  )
 
   useEffect(() => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setError('このブラウザでは画面の中にカメラを映せません')
-      return
-    }
+    if (!canUseCamera()) return
     let stream: MediaStream | undefined
     let cancelled = false
     navigator.mediaDevices
