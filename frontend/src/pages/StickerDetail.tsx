@@ -9,6 +9,7 @@ import { deleteSticker, getStickerByRkey } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import Avatar from '../components/Avatar.tsx'
 import Handle from '../components/Handle.tsx'
+import Loading from '../components/Loading.tsx'
 import StickerImage from '../components/StickerImage.tsx'
 import { NSID, type Did, type Exchange, type StrongRef, type Sticker } from '../lexicon-types.ts'
 
@@ -186,7 +187,7 @@ export default function StickerDetail() {
         <img src="/images/back.svg" alt="" width={13} height={18} />
       </button>
 
-      {state.status === 'loading' && <p>読み込み中…</p>}
+      {state.status === 'loading' && <Loading />}
       {state.status === 'gone' && <p className="detail-gone">このピクルスは削除されました</p>}
       {state.status === 'ok' && (
         <>
