@@ -973,6 +973,25 @@ label:focus-within:has(> .visually-hidden) {
   letter-spacing: 0.27em;
 }
 
+/* ビン・共同フィールドの画面は縦に並べ、キャンバスを残りの高さに収めてページをスクロールさせない */
+.page:has(> .canvas-fit) {
+  display: flex;
+  flex-direction: column;
+}
+
+.page:has(> .canvas-fit) > * {
+  flex-shrink: 0;
+}
+
+/* 狭すぎる画面ではキャンバスを小さくしすぎず、スクロールに任せる */
+.canvas-fit {
+  flex: 1 0 0;
+  min-height: 240px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
 /* 漬け液のような薄い緑。キャンバスは透明にして、この背景と泡を透かす */
 .binder-jar {
   position: relative;
