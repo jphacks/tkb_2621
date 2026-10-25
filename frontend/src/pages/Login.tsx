@@ -18,6 +18,8 @@ export default function Login() {
   const auth = useAuth()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>()
+  const [otherOpen, setOtherOpen] = useState(false)
+  const [handleInput, setHandleInput] = useState('')
 
   if (auth.status === 'loading') return <Loading />
 
@@ -58,6 +60,9 @@ export default function Login() {
     }
   }
 
+  // 「@alice.example.com」のように頭に @ を付けて入れる人がいるので外す
+  const handle = handleInput.trim().replace(/^@/, '')
+
   return (
     <div className="login">
       <h1 className="login-logo">
@@ -76,7 +81,7 @@ export default function Login() {
         <img src="/images/login-sticker-1.png" alt="" width={145} height={145} />
         <img src="/images/login-sticker-2.png" alt="" width={149} height={150} />
       </div>
-      {/* IDとパスワードは bsky.social の認可画面で入れてもらう */}
+      {/* IDとパスワードは各 PDS の認可画面で入れてもらう。ふだんは bsky.social、それ以外はハンドルから引く */}
       <div className="login-form">
         <button
           type="button"
@@ -86,6 +91,35 @@ export default function Login() {
         >
           Blueskyでログイン
         </button>
+        {otherOpen ? (
+          <form
+            className="login-other"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (handle) void signIn(handle)
+            }}
+          >
+            <input
+              type="text"
+              className="login-handle"
+              placeholder="example.com"
+              aria-label="ハンドル"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="username"
+              spellCheck={false}
+              value={handleInput}
+              onChange={(e) => setHandleInput(e.target.value)}
+            />
+            <button type="submit" className="login-primary" disabled={submitting || !handle}>
+              ログイン
+            </button>
+          </form>
+        ) : (
+          <button type="button" className="login-other-toggle" onClick={() => setOtherOpen(true)}>
+            bsky.social 以外のアカウントでログイン
+          </button>
+        )}
         {(error ?? auth.error) && (
           <p role="alert" className="login-error">
             {error ?? auth.error}
