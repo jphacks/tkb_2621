@@ -489,6 +489,19 @@ export default function Field() {
           <img src="/images/back.svg" alt="" width={13} height={18} />
         </Link>
         <h1>{field?.title ?? '共同フィールド'}</h1>
+        {member && field && !deleted && (
+          <div className="field-manage">
+            {field.creator === me ? (
+              <button type="button" className="btn" onClick={() => void onDelete()} disabled={busy}>
+                {busy ? '削除しています…' : 'フィールドを削除'}
+              </button>
+            ) : (
+              <button type="button" className="btn" onClick={() => void onLeave()} disabled={busy}>
+                {busy ? '抜けています…' : '抜ける'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </>
   )
@@ -651,20 +664,6 @@ export default function Field() {
               </button>
             ))}
           </div>
-        </div>
-      )}
-
-      {member && field && (
-        <div className="field-manage">
-          {field.creator === me ? (
-            <button type="button" className="btn" onClick={() => void onDelete()} disabled={busy}>
-              {busy ? '削除しています…' : 'フィールドを削除'}
-            </button>
-          ) : (
-            <button type="button" className="btn" onClick={() => void onLeave()} disabled={busy}>
-              {busy ? '抜けています…' : '抜ける'}
-            </button>
-          )}
         </div>
       )}
     </>
