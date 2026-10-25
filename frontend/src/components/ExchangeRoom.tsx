@@ -11,6 +11,7 @@ import {
   type ExchangeView,
   type ServerMessage,
 } from '../api/backend.ts'
+import { listOwnRecords } from '../api/binder.ts'
 import { getPartnerMessage, MESSAGE_MAX } from '../api/exchange.ts'
 import { follow, isFollowing } from '../api/follow.ts'
 import { countGraphemes, getSticker, resolveDid, stickerImageUrl } from '../api/sticker.ts'
@@ -141,16 +142,13 @@ export default function ExchangeRoom(props: {
   const partnerDid = partnerRef ? new AtUri(partnerRef.uri).host : undefined
   const joined = props.partnerJoined || partnerRef !== undefined
 
-  // 自分のステッカーを並べる
+  // 自分のステッカーを並べる（100件を超えても全ページ読む）
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const { data } = await agent.com.atproto.repo.listRecords({ repo: did, collection: NSID.sticker, limit: 100 })
+      const records = await listOwnRecords<Sticker>(agent, did, NSID.sticker)
       const items = await Promise.all(
-        data.records.map(async (r) => {
-          const sticker = r.value as unknown as Sticker
-          return { ref: { uri: r.uri, cid: r.cid }, sticker, imageUrl: await stickerImageUrl(did, sticker) }
-        }),
+        records.map(async (r) => ({ ref: { uri: r.uri, cid: r.cid }, sticker: r.value, imageUrl: await stickerImageUrl(did, r.value) })),
       )
       if (!cancelled) setMyStickers(items)
     })().catch((e: unknown) => {
