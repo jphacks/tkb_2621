@@ -1,7 +1,7 @@
 // S8 共同フィールド。メンバー全員の field.placement を1枚のキャンバスに重ねる。
 // 手持ちのステッカー（自分のもの＋成立した交換で受け取ったもの）を貼れ、動かし終わって1秒たったら自分の field.placement を書き直す。
 // 他のメンバーの貼り付け・移動・削除は Jetstream（api/fieldLive.ts）でその場に反映する。
-// 自分の貼り付けは選んで「はがす」で消せる。作った人は「フィールドを削除」、それ以外は「抜ける」。
+// 自分の貼り付けは選んで角の × で消せる。作った人は「フィールドを削除」、それ以外は「抜ける」。
 import { AtUri } from '@atproto/api'
 import QRCode from 'qrcode'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -481,7 +481,6 @@ export default function Field() {
   }))
 
   const joinPath = field ? `/fields/join?${new URLSearchParams({ uri: field.ref.uri, cid: field.ref.cid })}` : undefined
-  const selectedMine = items?.some((item) => item.uri === selectedId && item.author === me) ?? false
 
   const header = (
     <>
@@ -592,6 +591,7 @@ export default function Field() {
           }}
           onFront={bringToFront}
           onChange={move}
+          onPeel={() => void peel()}
           onTapLocked={(uri) => setTapped(items?.find((item) => item.uri === uri))}
           board
         />
@@ -632,11 +632,6 @@ export default function Field() {
 
       {member && (
         <div className="binder-dock">
-          {selectedMine && (
-            <button type="button" className="btn btn-block" onClick={() => void peel()}>
-              はがす
-            </button>
-          )}
           <div className="binder-hand-header">
             <h2 className="section-title">手持ちのピクルス</h2>
             {mine && mine.length > 0 && <span className="binder-hand-hint">{mine.length}枚・タップして貼る</span>}
