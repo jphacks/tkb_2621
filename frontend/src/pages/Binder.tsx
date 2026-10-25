@@ -297,7 +297,8 @@ export default function Binder() {
       return
     }
     try {
-      await navigator.share({ files: [file], text: SHARE_TEXT, url: SHARE_URL })
+      // url は渡さず text に入れる（iOS で files と url を一緒に渡すと、アプリによっては画像が落ちるため）
+      await navigator.share({ files: [file], text: `${SHARE_TEXT} ${SHARE_URL}` })
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return
       if (e instanceof DOMException && e.name === 'NotAllowedError') {
