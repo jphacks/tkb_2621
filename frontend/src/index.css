@@ -1033,10 +1033,6 @@ label:focus-within:has(> .visually-hidden) {
   background: var(--color-bg);
 }
 
-.binder-dock > .btn {
-  margin-bottom: var(--space-3);
-}
-
 .binder-hand-header {
   display: flex;
   align-items: center;

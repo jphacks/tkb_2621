@@ -1,5 +1,5 @@
 // S4 シール帳。手持ちのステッカーをページに貼り、動かし終わって1秒たったら binder.page に保存する。
-// 選んだものは「はがす」でページから外せる（ステッカー本体は消さない）。削除されたステッカーの配置は保存のときに落とす。
+// 選んだものは角の × でページから外せる（ステッカー本体は消さない）。削除されたステッカーの配置は保存のときに落とす。
 // 手持ちのステッカーは長押しするとステッカー詳細へ跳ぶ。
 // 前に開いたときの手持ちと配置があればまずそれを出し、裏で読み直す。
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
@@ -294,7 +294,7 @@ export default function Binder() {
 
       {pageError && <p role="alert">{pageError}</p>}
       {canvasItems ? (
-        <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} jar />
+        <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} onPeel={peel} jar />
       ) : (
         !pageError && <Loading />
       )}
@@ -303,11 +303,6 @@ export default function Binder() {
       </small>
 
       <div className="binder-dock">
-        {selectedId && items?.some((item) => item.id === selectedId) && (
-          <button type="button" className="btn btn-block" onClick={peel}>
-            はがす
-          </button>
-        )}
         <div className="binder-hand-header">
           <h2 className="section-title">手持ちのピクルス</h2>
           <Link to="/binder/list" className="binder-list-link">

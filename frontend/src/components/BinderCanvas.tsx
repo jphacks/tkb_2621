@@ -1,7 +1,7 @@
 // シール帳の1ページを描くキャンバス。ドラッグで移動、取っ手か2本指で拡大縮小・回転、触ったものを一番上に。
 import Konva from 'konva'
 import { useEffect, useRef, useState } from 'react'
-import { Image as KonvaImage, Layer, Rect, Stage, Transformer } from 'react-konva'
+import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } from 'react-konva'
 import { BASE_SIZE_RATIO, PAGE_ASPECT, fromPlacement, toPlacement } from '../api/binder.ts'
 import type { Placement } from '../lexicon-types.ts'
 
@@ -42,6 +42,8 @@ function StickerNode(props: {
   register: (node: Konva.Image | null) => void
   onSelect: () => void
   onChange: (node: Konva.Image) => void
+  /** ドラッグ・取っ手で動かしている途中 */
+  onMove: () => void
   onTapLocked?: () => void
 }) {
   const { item, pageWidth, register } = props
@@ -71,6 +73,8 @@ function StickerNode(props: {
       onTouchStart={item.locked ? undefined : (e) => e.evt.touches.length === 1 && props.onSelect()}
       onClick={item.locked ? props.onTapLocked : undefined}
       onTap={item.locked ? props.onTapLocked : undefined}
+      onDragMove={props.onMove}
+      onTransform={props.onMove}
       onDragEnd={(e) => props.onChange(e.target as Konva.Image)}
       onTransformEnd={(e) => props.onChange(e.target as Konva.Image)}
     />
@@ -87,6 +91,9 @@ interface Pinch {
 /** ぷかぷかの揺れ幅（画面上の px） */
 const FLOAT_PX = 4
 const FLOAT_SWAY_PX = 1.5
+
+/** 選んでいるステッカーの角に出す × の半径（画面上の px） */
+const PEEL_RADIUS = 11
 
 /** 1枚ずつ揺れの速さと始まりをずらすための値。同じ id ならいつも同じ */
 function floatSeed(id: string): number {
@@ -113,7 +120,7 @@ function touchGeometry(touches: TouchList) {
 
 export default function BinderCanvas(props: {
   items: CanvasItem[]
-  /** 選んでいるもの（親が持つ。「はがす」を出すため） */
+  /** 選んでいるもの（親が持つ） */
   selectedId: string | undefined
   /** ステッカーをタップしたとき、または何もないところをタップしたとき（undefined） */
   onSelect: (id: string | undefined) => void
@@ -121,6 +128,8 @@ export default function BinderCanvas(props: {
   onFront: (id: string) => void
   /** 動かし終わったときの配置（Lexicon の整数の単位） */
   onChange: (id: string, placement: Placement) => void
+  /** 選んでいるものの角の × をタップしたとき（はがす）。無ければ × を出さない */
+  onPeel?: (id: string) => void
   /** locked のステッカーをタップしたとき */
   onTapLocked?: (id: string) => void
   /** true ならビン（シール帳）の見た目にして、ステッカーをぷかぷか揺らす */
@@ -128,11 +137,12 @@ export default function BinderCanvas(props: {
   /** true なら共同フィールドの見た目（白地にドット）にする。揺らさない */
   board?: boolean
 }) {
-  const { items, selectedId, onSelect, onFront, onChange, onTapLocked, jar, board } = props
+  const { items, selectedId, onSelect, onFront, onChange, onPeel, onTapLocked, jar, board } = props
   const containerRef = useRef<HTMLDivElement>(null)
   const [pageWidth, setPageWidth] = useState(0)
   const nodes = useRef(new Map<string, Konva.Image>())
   const transformerRef = useRef<Konva.Transformer>(null)
+  const peelRef = useRef<Konva.Group>(null)
   const pinch = useRef<Pinch | undefined>(undefined)
   const selectedRef = useRef(selectedId)
 
@@ -181,10 +191,24 @@ export default function BinderCanvas(props: {
     return () => observer.disconnect()
   }, [])
 
+  const pageHeight = Math.round(pageWidth * PAGE_ASPECT)
   const selected = items.find((item) => item.id === selectedId)
+  const peelable = selected && !selected.locked && onPeel
+
+  // × を選んでいるステッカーの左上の角に合わせる。回転しても角についていき、ページの外にははみ出さない
+  function placePeel() {
+    const button = peelRef.current
+    const node = selectedId ? nodes.current.get(selectedId) : undefined
+    if (!button || !node) return
+    const corner = node.getTransform().point({ x: 0, y: 0 })
+    const clamp = (v: number, max: number) => Math.min(Math.max(v, PEEL_RADIUS), max - PEEL_RADIUS)
+    button.position({ x: clamp(corner.x, pageWidth), y: clamp(corner.y, pageHeight) })
+  }
+
   useEffect(() => {
     const node = selectedId ? nodes.current.get(selectedId) : undefined
     transformerRef.current?.nodes(node ? [node] : [])
+    placePeel()
   })
 
   function commit(id: string, node: Konva.Image) {
@@ -224,6 +248,7 @@ export default function BinderCanvas(props: {
     const scale = start.scale * (dist / start.dist)
     node.scale({ x: scale, y: scale })
     node.rotation(start.rotation + angle - start.angle)
+    placePeel()
     node.getLayer()?.batchDraw()
   }
 
@@ -234,7 +259,6 @@ export default function BinderCanvas(props: {
     if (selectedId && node) commit(selectedId, node)
   }
 
-  const pageHeight = Math.round(pageWidth * PAGE_ASPECT)
   const sorted = [...items].sort((a, b) => a.placement.z - b.placement.z)
 
   return (
@@ -269,6 +293,7 @@ export default function BinderCanvas(props: {
                   }}
                   onSelect={() => select(item.id)}
                   onChange={(node) => commit(item.id, node)}
+                  onMove={placePeel}
                   onTapLocked={() => {
                     // 他人のものをタップしたら、選んでいた自分のものは外す
                     onSelect(undefined)
@@ -281,9 +306,19 @@ export default function BinderCanvas(props: {
                   ref={transformerRef}
                   keepRatio
                   flipEnabled={false}
-                  enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                  // 左上は × を出すので取っ手を置かない
+                  enabledAnchors={peelable ? ['top-right', 'bottom-left', 'bottom-right'] : ['top-left', 'top-right', 'bottom-left', 'bottom-right']}
                   boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 20 || Math.abs(newBox.height) < 20 ? oldBox : newBox)}
                 />
+              )}
+              {peelable && (
+                <Group ref={peelRef} onClick={() => onPeel(selected.id)} onTap={() => onPeel(selected.id)}>
+                  {/* 指で押しやすいように、見た目より広く当たりをとる */}
+                  <Circle radius={PEEL_RADIUS * 2} />
+                  <Circle radius={PEEL_RADIUS} fill="#2d2d2d" stroke="#fff" strokeWidth={2} />
+                  <Line points={[-4, -4, 4, 4]} stroke="#fff" strokeWidth={2} lineCap="round" listening={false} />
+                  <Line points={[-4, 4, 4, -4]} stroke="#fff" strokeWidth={2} lineCap="round" listening={false} />
+                </Group>
               )}
             </Layer>
           </Stage>
