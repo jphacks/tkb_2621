@@ -6,9 +6,13 @@ import { CAPTION_MAX, countGraphemes, createSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import PageHeader from '../components/PageHeader.tsx'
+import WebcamCapture from '../components/WebcamCapture.tsx'
 import type { Sticker } from '../lexicon-types.ts'
 
 type Source = Sticker['source']
+
+// スマホは input の capture 属性で端末のカメラアプリを開く。パソコンでは開かないので画面の中でカメラを映す
+const isTouchDevice = window.matchMedia('(pointer: coarse)').matches
 
 type Step =
   | { kind: 'choose' }
@@ -39,11 +43,14 @@ export default function Capture() {
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
   const { agent, did } = auth
 
-  async function onFile(e: ChangeEvent<HTMLInputElement>, source: Source) {
+  function onFile(e: ChangeEvent<HTMLInputElement>, source: Source) {
     const file = e.target.files?.[0]
     // 同じファイルを選び直しても onChange が走るように空にしておく
     e.target.value = ''
-    if (!file) return
+    if (file) void makeSticker(file, source)
+  }
+
+  async function makeSticker(file: File, source: Source) {
     if (source === 'illustration' && file.type !== 'image/png') {
       setError('イラストは PNG を選んでください')
       return
@@ -158,7 +165,9 @@ export default function Capture() {
         </button>
       </div>
 
-      {mode === 'camera' ? (
+      {mode === 'camera' && !isTouchDevice ? (
+        <WebcamCapture onCapture={(file) => void makeSticker(file, 'photo')} />
+      ) : mode === 'camera' ? (
         <>
           <div className="capture-viewer">
             <div className="capture-frame">下のボタンでカメラが開きます</div>

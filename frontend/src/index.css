@@ -677,12 +677,28 @@ label:focus-within:has(> .visually-hidden) {
   color: rgba(255, 255, 255, 0.5);
 }
 
+.capture-video {
+  width: 100%;
+  max-height: 360px;
+  border-radius: var(--radius-button);
+  object-fit: contain;
+  background: #000;
+}
+
 .capture-shutter {
   display: block;
   width: 63px;
   margin: var(--space-4) auto 0;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
+  background: none;
   cursor: pointer;
+}
+
+.capture-shutter:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .capture-files {
