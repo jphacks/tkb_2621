@@ -10,6 +10,7 @@ import { readCache, writeCache } from '../api/screenCache.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import { ProfileAvatar } from '../components/Profile.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
+import { SHARE_TEXT, SHARE_URL, renderBinderPage } from '../components/binderShareImage.ts'
 import Loading from '../components/Loading.tsx'
 import type { Placement } from '../lexicon-types.ts'
 
@@ -20,6 +21,8 @@ const LONG_PRESS_MS = 500
 const LONG_PRESS_SLOP_PX = 10
 
 type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
+/** ready：画像はできたが、共有シートを開けなかった（もう一度押すと開く） */
+type ShareState = 'idle' | 'making' | 'ready'
 
 interface PageItem {
   id: string
@@ -71,6 +74,10 @@ export default function Binder() {
   const [pageError, setPageError] = useState<string>()
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [selectedId, setSelectedId] = useState<string>()
+  const [shareState, setShareState] = useState<ShareState>('idle')
+  const [shareError, setShareError] = useState<string>()
+  // 作った画像。共有が「ボタンを押した直後でない」と断られたら、次に押したときこれをそのまま渡す
+  const shareFile = useRef<File | undefined>(undefined)
 
   const page = pages?.[pageIndex]
 
@@ -174,6 +181,8 @@ export default function Binder() {
   function update(next: PageItem[]) {
     if (page === undefined) return
     touched.current = true
+    shareFile.current = undefined
+    setShareState('idle')
     setItems(next)
     schedule(page, next)
   }
@@ -231,9 +240,51 @@ export default function Binder() {
     setSelectedId(undefined)
   }
 
+  /** 今のページを PNG にして、端末の共有シートに渡す。共有できない端末ではダウンロードさせる */
+  async function share() {
+    if (!canvasItems || page === undefined) return
+    setShareError(undefined)
+    let file = shareFile.current
+    if (!file) {
+      setShareState('making')
+      try {
+        file = new File([await renderBinderPage(canvasItems)], `pikkles-bin-${pageIndex + 1}.png`, { type: 'image/png' })
+      } catch (e) {
+        setShareState('idle')
+        setShareError(`画像を作れませんでした：${errorMessage(e)}`)
+        return
+      }
+    }
+    shareFile.current = undefined
+    setShareState('idle')
+    if (!navigator.canShare?.({ files: [file] })) {
+      const url = URL.createObjectURL(file)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = file.name
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 0)
+      return
+    }
+    try {
+      await navigator.share({ files: [file], text: SHARE_TEXT, url: SHARE_URL })
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return
+      if (e instanceof DOMException && e.name === 'NotAllowedError') {
+        // 画像を作っている間に、押した直後の扱いが切れた。作った画像をとっておき、もう一度押してもらう
+        shareFile.current = file
+        setShareState('ready')
+        return
+      }
+      setShareError(`シェアできませんでした：${errorMessage(e)}`)
+    }
+  }
+
   function goTo(index: number) {
     void flush()
     touched.current = false
+    shareFile.current = undefined
+    setShareState('idle')
     setSelectedId(undefined)
     setItems(toItems(readCache<Placement[]>(pageCacheKey(did, pages?.[index]))))
     setPageError(undefined)
@@ -253,6 +304,8 @@ export default function Binder() {
     }
     touched.current = false
     setPages([...pages, number])
+    shareFile.current = undefined
+    setShareState('idle')
     setSelectedId(undefined)
     setItems(undefined)
     setPageIndex(pages.length)
@@ -274,6 +327,14 @@ export default function Binder() {
         <Link to="/exchange" className="btn btn-primary binder-exchange">
           ⇔交換する
         </Link>
+        <button
+          type="button"
+          className="btn btn-primary binder-exchange binder-share"
+          onClick={() => void share()}
+          disabled={!canvasItems || shareState === 'making'}
+        >
+          {shareState === 'making' ? '作っています…' : 'シェア'}
+        </button>
         <button type="button" className="round-button" onClick={() => goTo(pageIndex - 1)} disabled={!pages || pageIndex === 0} aria-label="前のページ">
           ←
         </button>
@@ -293,6 +354,12 @@ export default function Binder() {
       </div>
 
       {pageError && <p role="alert">{pageError}</p>}
+      {shareError && <p role="alert">{shareError}</p>}
+      {shareState === 'ready' && (
+        <p role="status" className="text-muted">
+          画像ができました。もう一度「シェア」を押すと共有できます
+        </p>
+      )}
       {canvasItems ? (
         <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} onPeel={peel} jar />
       ) : (

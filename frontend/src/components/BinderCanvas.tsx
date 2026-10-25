@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Circle, Group, Image as KonvaImage, Layer, Line, Rect, Stage, Transformer } from 'react-konva'
 import { BASE_SIZE_RATIO, PAGE_ASPECT, fromPlacement, toPlacement } from '../api/binder.ts'
 import type { Placement } from '../lexicon-types.ts'
+import { BUBBLES } from './jarBubbles.ts'
 
 // 1本指でドラッグ中にもう1本の指が触れたとき、2本指の操作として拾えるようにする
 Konva.hitOnDragEnabled = true
@@ -101,15 +102,6 @@ function floatSeed(id: string): number {
   for (const c of id) sum = (sum * 31 + c.charCodeAt(0)) % 997
   return sum
 }
-
-/** ビンの泡。位置は Figma の配置をビンの幅・高さに対する割合にしたもの */
-const BUBBLES = [
-  { src: '/images/bubble-1.svg', left: '89%', top: '3%' },
-  { src: '/images/bubble-2.svg', left: '94%', top: '11%' },
-  { src: '/images/bubble-3.svg', left: '5%', top: '67%' },
-  { src: '/images/bubble-4.svg', left: '11%', top: '74%' },
-  { src: '/images/bubble-5.svg', left: '5%', top: '86%' },
-]
 
 function touchGeometry(touches: TouchList) {
   const [a, b] = [touches[0], touches[1]]
