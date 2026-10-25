@@ -10,8 +10,9 @@ import {
   type ExchangeView,
   type ServerMessage,
 } from '../api/backend.ts'
+import { getPartnerMessage, MESSAGE_MAX } from '../api/exchange.ts'
 import { follow, isFollowing } from '../api/follow.ts'
-import { getSticker, resolveDid, stickerImageUrl } from '../api/sticker.ts'
+import { countGraphemes, getSticker, resolveDid, stickerImageUrl } from '../api/sticker.ts'
 import { listWantedBy } from '../api/want.ts'
 import { NSID, type Did, type Exchange, type StrongRef, type Sticker } from '../lexicon-types.ts'
 
@@ -77,6 +78,23 @@ function FollowPrompt({ agent, did, partner, handle }: { agent: Agent; did: Did;
   )
 }
 
+/** 成立表示で、相手が添えた一言を出す。相手の記録が読めるまでは何も出さない */
+function PartnerMessage({ partner, sessionId }: { partner: Did; sessionId: string }) {
+  const [message, setMessage] = useState<string>()
+
+  useEffect(() => {
+    let cancelled = false
+    getPartnerMessage(partner, sessionId)
+      .then((m) => !cancelled && setMessage(m))
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [partner, sessionId])
+
+  return message ? <p>相手からの一言：{message}</p> : null
+}
+
 export default function ExchangeRoom(props: {
   agent: Agent
   did: Did
@@ -94,6 +112,8 @@ export default function ExchangeRoom(props: {
   const [loadError, setLoadError] = useState<string>()
   const [selected, setSelected] = useState<StrongRef>()
   const [confirmed, setConfirmed] = useState(false)
+  /** 相手に渡す一言（任意） */
+  const [message, setMessage] = useState('')
   const [partnerRef, setPartnerRef] = useState<StrongRef>()
   const [partnerImage, setPartnerImage] = useState<string>()
   const [partnerHandle, setPartnerHandle] = useState<string>()
@@ -103,9 +123,9 @@ export default function ExchangeRoom(props: {
 
   const socketRef = useRef<ExchangeSocket>(undefined)
   // WebSocket のハンドラから最新の値を読むための写し
-  const latest = useRef({ selected, partnerRef, occasion })
+  const latest = useRef({ selected, partnerRef, occasion, message })
   useLayoutEffect(() => {
-    latest.current = { selected, partnerRef, occasion }
+    latest.current = { selected, partnerRef, occasion, message }
   })
   // both_confirmed は再接続で送り直されるので、記録は1回だけ書く
   const recordStarted = useRef(false)
@@ -183,6 +203,7 @@ export default function ExchangeRoom(props: {
 
   async function record(messageOccasion: string | null) {
     const { selected: gave, partnerRef: received } = latest.current
+    const note = latest.current.message.trim()
     if (!gave || !received) {
       setPhase({ kind: 'failed', reason: '選んだステッカーが分からなくなりました' })
       return
@@ -194,6 +215,8 @@ export default function ExchangeRoom(props: {
         sessionId,
         // サーバーのセッションの値をそのまま入れる。無ければ書かない
         ...(messageOccasion ? { occasion: messageOccasion } : {}),
+        // 一言は書いたときだけ入れる
+        ...(note ? { message: note } : {}),
         partner: new AtUri(received.uri).host,
         gave,
         received,
@@ -250,8 +273,11 @@ export default function ExchangeRoom(props: {
     socketRef.current?.send({ type: 'select', sticker: ref })
   }
 
+  const messageLength = countGraphemes(message)
+  const messageTooLong = messageLength > MESSAGE_MAX
+
   function confirm() {
-    if (!selected) return
+    if (!selected || messageTooLong) return
     setConfirmed(true)
     socketRef.current?.send({ type: 'confirm' })
   }
@@ -293,6 +319,7 @@ export default function ExchangeRoom(props: {
         <p>相手：{partnerHandle ? `@${partnerHandle}` : partner}</p>
         <p>場面：{shownOccasion || '（なし）'}</p>
         {partnerImage && <img src={partnerImage} alt="受け取ったステッカー" width={IMAGE_SIZE * 2} />}
+        {partner && <PartnerMessage partner={partner} sessionId={sessionId} />}
         {partner && <FollowPrompt agent={agent} did={did} partner={partner} handle={partnerHandle} />}
         <p>
           <Link to="/binder">シール帳へ</Link>
@@ -414,8 +441,19 @@ export default function ExchangeRoom(props: {
         })}
       </div>
 
+      <label className="exchange-occasion">
+        相手にひとこと（任意）
+        <input type="text" className="input" value={message} onChange={(e) => setMessage(e.target.value)} disabled={confirmed} />
+      </label>
+      <p className="exchange-occasion-help">
+        <span>確定したあとは変えられません</span>
+        <span className={messageTooLong ? 'capture-count over' : 'capture-count'}>
+          {messageLength}/{MESSAGE_MAX}
+        </span>
+      </p>
+
       <p>
-        <button type="button" onClick={confirm} disabled={!selected || !partnerRef || confirmed}>
+        <button type="button" onClick={confirm} disabled={!selected || !partnerRef || confirmed || messageTooLong}>
           {confirmed ? '確定しました' : '確定'}
         </button>
       </p>

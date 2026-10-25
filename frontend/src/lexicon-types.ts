@@ -61,7 +61,7 @@ export interface Sticker {
   width: number
   height: number
   source: 'photo' | 'illustration'
-  /** 任意、最大100文字 */
+  /** 任意、最大100文字。ピクルス名（以前は一言） */
   caption?: string
   /** 撮影日時（イラストは保存日時） */
   createdAt: Datetime
@@ -80,6 +80,8 @@ export interface Exchange {
   sessionId: string
   /** 任意、最大50文字。交換した場面（手入力。位置情報ではない） */
   occasion?: string
+  /** 任意、最大100文字。この交換で相手に渡す一言。渡す側が自分の記録に書く */
+  message?: string
   partner: Did
   /** 自分が渡したステッカー */
   gave: StrongRef
