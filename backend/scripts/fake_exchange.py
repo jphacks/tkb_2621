@@ -180,8 +180,6 @@ async def exchange(http: httpx.Client, base_url: str, a: User, b: User, occasion
         await wait_for(ws_a, "A", "completed")
         await wait_for(ws_b, "B", "completed")
 
-    exchanges = check(http.get("/exchanges", params={"did": a.did}))["exchanges"]
-    print(f"[A] /exchanges: {len(exchanges)} 件（最新 {exchanges[0]['sessionId']}）")
     return session_id
 
 
