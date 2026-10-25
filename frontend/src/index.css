@@ -983,8 +983,8 @@ label:focus-within:has(> .visually-hidden) {
   margin-bottom: var(--space-3);
 }
 
-/* 交換は左、ページ送りは右 */
-.binder-toolbar .binder-exchange {
+/* 交換とシェアは左、ページ送りは右 */
+.binder-toolbar .binder-share {
   margin-right: auto;
 }
 
