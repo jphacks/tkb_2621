@@ -179,6 +179,8 @@ export default function Field() {
   const [member, setMember] = useState<boolean>()
   const [members, setMembers] = useState<Did[]>()
   const [membersError, setMembersError] = useState<string>()
+  /** 自分の PDS では参加済みなのに、サーバーで参加し直せなかった（403） */
+  const [droppedOut, setDroppedOut] = useState(false)
   const [handles, setHandles] = useState<Record<Did, string>>({})
   const [items, setItems] = useState<FieldItem[]>()
   const [mine, setMine] = useState<OwnedSticker[]>()
@@ -222,15 +224,26 @@ export default function Field() {
         fromServer = res.members
         // 自分の PDS では参加済みなのにサーバーが知らないときは、開いた時点で参加し直す
         if (joined && !fromServer.includes(me)) fromServer = (await joinField(agent, f.ref)).members
-        if (!isCancelled()) setMembersError(undefined)
+        if (!isCancelled()) {
+          setMembersError(undefined)
+          setDroppedOut(false)
+        }
       } catch (e) {
         // 410: 閉じたフィールドには参加し直せない
         if (e instanceof BackendError && e.status === 410) {
           if (!isCancelled()) setDeleted(true)
           return
         }
-        // サーバーが読めなくても、自分と作った人の分は出す
-        if (!isCancelled()) setMembersError(errorMessage(e))
+        // 403: サーバーのメンバーから外れていて、コード無しでは参加し直せない。自分の PDS の field.member は消さない
+        if (e instanceof BackendError && e.status === 403) {
+          if (!isCancelled()) {
+            setMembersError(undefined)
+            setDroppedOut(true)
+          }
+        } else if (!isCancelled()) {
+          // サーバーが読めなくても、自分と作った人の分は出す
+          setMembersError(errorMessage(e))
+        }
       }
       const all = [...new Set([f.creator, ...(joined ? [me] : []), ...fromServer])]
       if (isCancelled()) return
@@ -655,6 +668,14 @@ export default function Field() {
 
       {error && <p role="alert">{error}</p>}
       {membersError && <small role="alert">メンバーの一部が読めませんでした（{membersError}）</small>}
+      {droppedOut && (
+        <p role="alert">
+          このフィールドのメンバーから外れています。メンバーに参加コードを出してもらってください{' '}
+          <Link to="/fields" state={{ panel: 'code' }}>
+            参加コードを入れる
+          </Link>
+        </p>
+      )}
       <BackendWaking />
 
       {member === false && (

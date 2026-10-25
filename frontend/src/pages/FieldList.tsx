@@ -2,7 +2,7 @@
 // 削除されたものは「削除済み」と出す。開いたとき、自分が作って閉じた field の後始末もする。
 // 前に開いたときの一覧があればまずそれを出し、裏で読み直す。
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { joinField } from '../api/backend.ts'
 import {
   FIELD_TITLE_MAX,
@@ -53,7 +53,11 @@ export default function FieldList() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string>()
   // 「新しく作る」の入力欄と「招待QRを読む」のカメラと「コードで参加」の入力欄は、ボタンを押したときだけ開く
-  const [panel, setPanel] = useState<'create' | 'scan' | 'code'>()
+  // S8 で「参加コードを入れる」を押して来たときは、コードの入力欄を開いておく
+  const location = useLocation()
+  const [panel, setPanel] = useState<'create' | 'scan' | 'code' | undefined>(() =>
+    (location.state as { panel?: string } | null)?.panel === 'code' ? 'code' : undefined,
+  )
   const [scanError, setScanError] = useState<string>()
   const [code, setCode] = useState('')
 

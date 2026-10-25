@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 _resolver = AsyncIdResolver(cache=AsyncDidInMemoryCache())
 
+# getServiceAuth の lxm。frontend/src/auth/scope.ts の SERVICE_AUTH_LXM と同じ値にする
+SERVICE_AUTH_LXM = "com.kosora623.pikkles.api"
+
 
 class AuthError(Exception):
     pass
@@ -27,7 +30,7 @@ async def _get_signing_key(did: str, force_refresh: bool) -> str:
 
 
 async def verify_token(token: str) -> str:
-    """JWT の署名・aud・有効期限を確かめ、iss（呼び出した人の DID）を返す。"""
+    """JWT の署名・aud・有効期限・lxm を確かめ、iss（呼び出した人の DID）を返す。"""
     if not BACKEND_DID:
         # aud を確かめられないまま通さない
         raise RuntimeError("BACKEND_DID が設定されていません")
@@ -38,6 +41,9 @@ async def verify_token(token: str) -> str:
     # verify_jwt_async は exp が無いと期限を確かめないので、ここで必須にする
     if payload.exp is None:
         raise AuthError("exp がありません")
+    # 別のメソッド用（または lxm 無しの全メソッド用）に発行されたトークンは通さない
+    if getattr(payload, "lxm", None) != SERVICE_AUTH_LXM:
+        raise AuthError("lxm が違います")
     return payload.iss
 
 

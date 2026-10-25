@@ -195,11 +195,12 @@ Lexiconの定義ファイル（JSON）は `lexicons/`、TypeScriptの型は `fro
 | POST | `/exchange/sessions/{id}/join` | 参加 | なし | セッション状態 |
 | WS | `/exchange/sessions/{id}/ws` | 選択・確定の同期 | strongRef、確定 | 相手の選択、確定状態 |
 | POST | `/exchange/sessions/{id}/commit` | 交換記録を書いたことの通知 | 記録のURI | 成立判定の結果 |
-| GET | `/exchanges?did=` | 成立済みの交換一覧 | DID | 交換一覧 |
 | GET | `/timeline` | タイムライン | `cursor`、`limit` | 出来事一覧 |
 | POST | `/fields/invite` | 共同フィールドの招待（メンバーだけ） | `field`（strongRef） | `code`（6文字、10分で失効。QRにも同じものを載せる）、`expiresIn` |
 | POST | `/fields/invite/lookup` | 参加コードからフィールドを引く | `code` | `field`、`expiresIn`。違うコードは1人10分に10回まで（超えると429） |
 | POST | `/fields/join` | 共同フィールドに参加 | `field`、`code`（すでにメンバーの人と作った人は不要） | メンバー一覧 |
+
+成立した交換は2人の PDS から読む（サーバーは持たない）。
 
 WebSocketメッセージ（案）
 
