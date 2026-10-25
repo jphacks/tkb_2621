@@ -217,7 +217,12 @@ async def _handle_message(session: Session, did: str, message) -> None:
     if isinstance(message, SelectMessage):
         if did in session.confirmed:
             return  # 確定したあとは変えられない
+        changed = session.selected.get(did) != message.sticker
         session.selected[did] = message.sticker
+        # 相手が確定したあとに選び直したら、相手の確定を取り消す（見せた1枚をすり替えて成立させないため）。
+        # 相手の画面は partner_selected で選び直しを知り、確定し直してもらう
+        if partner and changed:
+            session.confirmed.discard(partner)
         if partner:
             await _send(session, partner, PartnerSelectedMessage(type="partner_selected", sticker=message.sticker))
     elif isinstance(message, ConfirmMessage):
