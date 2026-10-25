@@ -1211,6 +1211,95 @@ label:focus-within:has(> .visually-hidden) {
   margin-top: var(--space-3);
 }
 
+/* 開いた直後の読み込み中。ロゴをビンのステッカーと同じようにゆっくり揺らす */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 60vh;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+}
+
+.loading p {
+  margin: 0;
+}
+
+.loading img {
+  filter: drop-shadow(var(--shadow-logo));
+  animation: loading-float 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes loading-float {
+  from {
+    transform: translateY(3px) rotate(-4deg);
+  }
+  to {
+    transform: translateY(-3px) rotate(4deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading img {
+    animation: none;
+  }
+}
+
+/* ログイン済みのときのアカウント */
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-button);
+}
+
+.account-names {
+  min-width: 0;
+}
+
+.account-names p {
+  margin: 0;
+}
+
+.account-handle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  word-break: break-all;
+}
+
+.account-did {
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.account-note {
+  margin: var(--space-3) 0 var(--space-5);
+  text-align: center;
+}
+
+.account-action {
+  margin-top: var(--space-3);
+  text-decoration: none;
+}
+
+/* 共同フィールドへの招待 */
+.field-invite-card {
+  margin-bottom: var(--space-4);
+}
+
+.field-invite-text {
+  margin: 0 0 var(--space-5);
+  font-size: var(--font-size-base);
+  line-height: 1.7;
+}
+
+.field-invite-error {
+  margin-top: var(--space-3);
+}
+
 .logo {
   font-family: var(--font-display);
   font-size: var(--font-size-display);

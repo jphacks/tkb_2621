@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.tsx'
+import Loading from '../components/Loading.tsx'
 
 // ログイン前に開いていた画面（交換の参加 URL など）。ExchangeJoin.tsx が入れる
 const RETURN_TO_KEY = 'pikkles:returnTo'
@@ -30,7 +31,7 @@ export default function OAuthCallback() {
     }
   }, [auth.status])
 
-  if (auth.status === 'loading') return <p>ログイン中…</p>
+  if (auth.status === 'loading') return <Loading label="ログイン中…" />
   if (auth.status === 'signedIn' && returnTo) return <Navigate to={returnTo} replace />
   // ログインできたらタイムラインへ。失敗したらログイン画面でエラーを見せる
   if (auth.status === 'signedIn') return <Navigate to="/" replace />

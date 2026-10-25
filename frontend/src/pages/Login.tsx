@@ -1,26 +1,35 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.tsx'
+import Avatar from '../components/Avatar.tsx'
+import Loading from '../components/Loading.tsx'
+import PageHeader from '../components/PageHeader.tsx'
 
 export default function Login() {
   const auth = useAuth()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>()
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
 
   if (auth.status === 'signedIn') {
     return (
       <>
-        <h1>ログイン中</h1>
-        <p>ハンドル：@{auth.handle}</p>
-        <p>DID：{auth.did}</p>
-        <button type="button" onClick={() => auth.signOut()}>
+        <PageHeader title="アカウント" />
+        <div className="card account-card">
+          <Avatar did={auth.did} size={48} />
+          <div className="account-names">
+            <p className="account-handle">@{auth.handle}</p>
+            <p className="text-muted account-did">{auth.did}</p>
+          </div>
+        </div>
+        <p className="text-muted account-note">ログインしています</p>
+        <Link to="/" className="btn btn-primary btn-block account-action">
+          タイムラインへ
+        </Link>
+        <button type="button" className="btn btn-block account-action" onClick={() => auth.signOut()}>
           ログアウト
         </button>
-        <p>
-          <Link to="/">タイムラインへ</Link>
-        </p>
       </>
     )
   }

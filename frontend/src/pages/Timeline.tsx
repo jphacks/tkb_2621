@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext.tsx'
 import Avatar from '../components/Avatar.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import Handle from '../components/Handle.tsx'
+import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 import StickerImage from '../components/StickerImage.tsx'
 import WantButton from '../components/WantButton.tsx'
@@ -158,7 +159,7 @@ export default function Timeline() {
     return () => observer.disconnect()
   }, [loadMore, error])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut' || !agent) return <Navigate to="/login" replace />
 
   const shown = dedupe(items)

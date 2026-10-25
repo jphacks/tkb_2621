@@ -7,6 +7,7 @@ import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, fieldPath, listJo
 import { countGraphemes } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
+import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 
 function errorMessage(e: unknown): string {
@@ -40,7 +41,7 @@ export default function FieldList() {
     }
   }, [agent, did])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
 
   const titleLength = countGraphemes(title.trim())
