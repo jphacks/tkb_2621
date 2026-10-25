@@ -1,6 +1,6 @@
 // S3 撮影・ステッカー化。画像を選ぶ → トリミングする → /cutout でステッカーにする → 公開の確認をして PDS に保存する。
 import { useState, type ChangeEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { cutout, type CutoutResponse } from '../api/backend.ts'
 import { CAPTION_MAX, countGraphemes, createSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
@@ -214,6 +214,9 @@ export default function Capture() {
       )}
 
       {error && <p role="alert">{error}</p>}
+      <Link to="/tutorial" className="tutorial-link">
+        使い方を見る
+      </Link>
     </>
   )
 }

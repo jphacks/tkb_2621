@@ -27,6 +27,9 @@ export default function Login() {
         <Link to="/" className="btn btn-primary btn-block account-action">
           タイムラインへ
         </Link>
+        <Link to="/tutorial" className="btn btn-block account-action">
+          使い方を見る
+        </Link>
         <button type="button" className="btn btn-block account-action" onClick={() => auth.signOut()}>
           ログアウト
         </button>
