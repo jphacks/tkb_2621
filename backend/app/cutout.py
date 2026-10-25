@@ -3,6 +3,7 @@
 import base64
 import io
 import logging
+import os
 import threading
 import time
 from typing import Literal
@@ -12,10 +13,8 @@ import numpy as np
 import onnxruntime as ort
 import psutil
 from PIL import ExifTags, Image, ImageOps
-from rembg import remove
-from rembg.sessions.base import BaseSession
-from rembg.sessions.u2netp import U2netpSession
 
+from .config import U2NET_HOME
 from .schemas import CutoutResponse
 
 logger = logging.getLogger(__name__)
@@ -37,7 +36,15 @@ SHADOW_OPACITY = 0.3
 # これ以上の不透明度を「被写体」とみなす。rembg の縁の薄いノイズにはフチを付けない
 ALPHA_THRESHOLD = 128
 
-_session: BaseSession | None = None
+# u2netp の入力。rembg の U2netpSession と同じ値
+MODEL_PATH = os.path.join(U2NET_HOME, "u2netp.onnx")
+MODEL_SIZE = (320, 320)
+MODEL_MEAN = np.array([0.485, 0.456, 0.406])
+MODEL_STD = np.array([0.229, 0.224, 0.225])
+
+# rembg は import するだけで使わない pymatting・numba・scipy まで読み込み、常駐が約90MB増える。
+# 推論は rembg と同じ前処理・後処理を onnxruntime で直接行う（rembg はビルド時のモデル取得だけに使う）
+_session: ort.InferenceSession | None = None
 # 同時に走るとメモリのピークが重なって512MBを超えるので、1枚ずつ処理する
 _lock = threading.Lock()
 _process = psutil.Process()
@@ -74,8 +81,19 @@ def init_session() -> None:
     opts.enable_mem_pattern = False
     opts.intra_op_num_threads = 1
     opts.inter_op_num_threads = 1
-    _session = U2netpSession(U2netpSession.name(), opts)
+    _session = ort.InferenceSession(MODEL_PATH, sess_options=opts, providers=["CPUExecutionProvider"])
     logger.info("rembg session ready: model=u2netp %.2fs rss=%.0fMB", time.perf_counter() - start, _rss_mb())
+
+
+def _remove_background(image: Image.Image, session: ort.InferenceSession) -> Image.Image:
+    """rembg の remove(image, session=U2netpSession) と同じ結果を返す。"""
+    im = np.array(image.resize(MODEL_SIZE, Image.Resampling.LANCZOS))
+    im = im / max(np.max(im), 1e-6)
+    x = ((im - MODEL_MEAN) / MODEL_STD).transpose((2, 0, 1))[np.newaxis].astype(np.float32)
+    pred = session.run(None, {session.get_inputs()[0].name: x})[0][0, 0]
+    pred = (pred - pred.min()) / (pred.max() - pred.min())
+    mask = Image.fromarray((pred * 255).astype("uint8"), mode="L").resize(image.size, Image.Resampling.LANCZOS)
+    return Image.composite(image, Image.new("RGBA", image.size, 0), mask)
 
 
 def _encode_png(image: Image.Image) -> bytes:
@@ -117,7 +135,7 @@ def _load(data: bytes, mode: str) -> Image.Image:
     return image
 
 
-def _cutout(data: bytes, source: CutoutSource, session: BaseSession) -> CutoutResponse:
+def _cutout(data: bytes, source: CutoutSource, session: ort.InferenceSession) -> CutoutResponse:
     start = time.perf_counter()
     rss_before = _rss_mb()
 
@@ -126,7 +144,7 @@ def _cutout(data: bytes, source: CutoutSource, session: BaseSession) -> CutoutRe
         if cut.getchannel("A").getextrema()[0] == 255:
             raise ValueError("透過のある画像（透過PNGなど）を選んでください")
     else:
-        cut = remove(_load(data, "RGB"), session=session).convert("RGBA")
+        cut = _remove_background(_load(data, "RGB"), session)
     if cut.getchannel("A").getextrema()[1] < ALPHA_THRESHOLD:
         raise ValueError("被写体が見つかりません")
     inference_s = time.perf_counter() - start

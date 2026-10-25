@@ -25,7 +25,7 @@
           },
           "caption": {
             "type": "string",
-            "description": "一言（任意）",
+            "description": "ピクルス名（任意）。以前は一言として使っていた",
             "maxGraphemes": 100,
             "maxLength": 1000
           },

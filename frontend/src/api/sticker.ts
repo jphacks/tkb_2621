@@ -73,7 +73,7 @@ export async function getStickerByRkey(did: Did, rkey: string): Promise<{ ref: S
   return { ref: { uri: data.uri, cid: data.cid }, sticker: data.value }
 }
 
-/** 一言の上限（書記素の数） */
+/** ピクルス名の上限（書記素の数） */
 export const CAPTION_MAX = 100
 
 export function countGraphemes(text: string): number {
