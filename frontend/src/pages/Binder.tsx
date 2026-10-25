@@ -274,9 +274,9 @@ export default function Binder() {
       <PageHeader title="ビン" />
 
       <div className="binder-toolbar">
-        <small role="status" className="text-muted">
-          {SAVE_LABEL[saveState]}
-        </small>
+        <Link to="/exchange" className="btn btn-primary binder-exchange">
+          ⇔交換する
+        </Link>
         <button type="button" className="round-button" onClick={() => goTo(pageIndex - 1)} disabled={!pages || pageIndex === 0} aria-label="前のページ">
           ←
         </button>
@@ -301,6 +301,9 @@ export default function Binder() {
       ) : (
         !pageError && <Loading />
       )}
+      <small role="status" className="text-muted binder-save-status">
+        {SAVE_LABEL[saveState]}
+      </small>
 
       <div className="binder-dock">
         {selectedId && items?.some((item) => item.id === selectedId) && (
@@ -310,6 +313,15 @@ export default function Binder() {
         )}
         <div className="binder-hand-header">
           <h2 className="section-title">手持ちのピクルス</h2>
+          <Link to="/binder/list" className="binder-list-link">
+            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+              <rect x="0.5" y="0.5" width="3.5" height="3.5" />
+              <rect x="6" y="0.5" width="3.5" height="3.5" />
+              <rect x="0.5" y="6" width="3.5" height="3.5" />
+              <rect x="6" y="6" width="3.5" height="3.5" />
+            </svg>
+            一覧
+          </Link>
           {owned && owned.length > 0 && <span className="binder-hand-hint">{owned.length}枚・タップして貼る・長押しで詳しく</span>}
         </div>
         {ownedError && <p role="alert">手持ちを読めませんでした：{ownedError}</p>}
@@ -341,10 +353,6 @@ export default function Binder() {
           ))}
         </div>
       </div>
-
-      <Link to="/exchange" className="btn btn-primary btn-block binder-exchange">
-        ⇔交換する
-      </Link>
     </>
   )
 }
