@@ -5,6 +5,7 @@ import { cutout, type CutoutResponse } from '../api/backend.ts'
 import { CAPTION_MAX, countGraphemes, createSticker } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
+import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 import WebcamCapture from '../components/WebcamCapture.tsx'
 import type { Sticker } from '../lexicon-types.ts'
@@ -36,7 +37,7 @@ export default function Capture() {
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState<string>()
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
   const { agent, did } = auth
 

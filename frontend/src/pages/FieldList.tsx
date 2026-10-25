@@ -7,6 +7,7 @@ import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, discardCreatedFie
 import { countGraphemes } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
+import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 
 function errorMessage(e: unknown): string {
@@ -40,7 +41,7 @@ export default function FieldList() {
     }
   }, [agent, did])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
 
   const titleLength = countGraphemes(title.trim())
@@ -106,7 +107,7 @@ export default function FieldList() {
 
       <h2 className="field-list-title">参加中</h2>
       {listError && <p role="alert">読めませんでした：{listError}</p>}
-      {!fields && !listError && <p className="text-muted">読み込み中…</p>}
+      {!fields && !listError && <Loading />}
       {fields?.length === 0 && <p className="text-muted">まだ参加していません。作るか、招待 QR を iPhone のカメラで読んでください</p>}
       <ul className="field-list">
         {fields?.map((joined) => (

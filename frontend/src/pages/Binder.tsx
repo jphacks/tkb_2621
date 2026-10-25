@@ -8,6 +8,7 @@ import { centerPlacement, findDeletedStickers, getPage, listOwnedStickers, listP
 import { useAuth } from '../auth/AuthContext.tsx'
 import Avatar from '../components/Avatar.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
+import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 import type { Placement } from '../lexicon-types.ts'
 
@@ -145,7 +146,7 @@ export default function Binder() {
 
   useEffect(() => () => window.clearTimeout(press.current?.timer), [])
 
-  if (auth.status === 'loading') return <p>読み込み中…</p>
+  if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
 
   function update(next: PageItem[]) {
@@ -272,7 +273,7 @@ export default function Binder() {
       {canvasItems ? (
         <BinderCanvas items={canvasItems} selectedId={selectedId} onSelect={setSelectedId} onFront={bringToFront} onChange={move} jar />
       ) : (
-        !pageError && <p className="text-muted">読み込み中…</p>
+        !pageError && <Loading />
       )}
 
       <div className="binder-dock">

@@ -3,6 +3,7 @@ import { AtUri, type Agent } from '@atproto/api'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from './Avatar.tsx'
+import Loading from './Loading.tsx'
 import {
   commitExchange,
   openExchangeSocket,
@@ -446,7 +447,7 @@ export default function ExchangeRoom(props: {
 
       <h2 className="exchange-mine-title">あなたのピクルス</h2>
       {loadError && <p role="alert">ピクルスを読めませんでした：{loadError}</p>}
-      {!myStickers && !loadError && <p className="text-muted">読み込み中…</p>}
+      {!myStickers && !loadError && <Loading />}
       {myStickers?.length === 0 && (
         <p>
           ピクルスがありません。<Link to="/capture">撮影する</Link>
