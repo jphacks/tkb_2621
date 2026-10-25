@@ -2,7 +2,7 @@
 import { AtUri, type Agent } from '@atproto/api'
 import { NSID, type Did, type Field, type FieldMember, type FieldPlacement, type Placement, type StrongRef } from '../lexicon-types.ts'
 import { deleteFieldOnServer, getFieldMembers, leaveFieldOnServer, type FieldMembersResponse } from './backend.ts'
-import { isRecordNotFound, listOwnRecords, listPublicRecords } from './binder.ts'
+import { hasReceived, isRecordNotFound, listOwnRecords, listPublicRecords } from './binder.ts'
 import { getSticker, resolveDid, stickerImageUrl } from './sticker.ts'
 
 /** タイトルの上限（書記素の数） */
@@ -104,7 +104,10 @@ export async function createField(agent: Agent, did: Did, title: string): Promis
 export interface FieldItem {
   /** field.placement の URI */
   uri: string
+  /** 貼った人 */
   author: Did
+  /** ステッカーを作った人。交換で受け取ったものを貼ったときは author と違う */
+  owner: Did
   placement: Placement
   createdAt: string
   /** 読めない（削除された）ステッカーは undefined。描かない */
@@ -117,18 +120,22 @@ export function toPlacementOnly(p: FieldPlacement): Placement {
   return { sticker: p.sticker, x: p.x, y: p.y, scale: p.scale, rotation: p.rotation, z: p.z }
 }
 
-/** このフィールドを指し、author 自身のステッカーを貼った field.placement なら true。Jetstream で受け取った中身にも使う */
-export function isOwnPlacement(author: Did, value: unknown, fieldUri: string): value is FieldPlacement {
+/** このフィールドを指し、ステッカーを貼った field.placement の形なら true。Jetstream で受け取った中身にも使う。貼ってよいものかは canPlace で見る */
+export function isFieldPlacement(value: unknown, fieldUri: string): value is FieldPlacement {
   if (typeof value !== 'object' || value === null) return false
   const p = value as Partial<FieldPlacement>
   if (p.field?.uri !== fieldUri || typeof p.sticker?.uri !== 'string' || typeof p.sticker.cid !== 'string') return false
   if (![p.x, p.y, p.scale, p.rotation, p.z].every((n) => typeof n === 'number')) return false
   try {
-    const at = new AtUri(p.sticker.uri)
-    return at.host === author && at.collection === NSID.sticker
+    return new AtUri(p.sticker.uri).collection === NSID.sticker
   } catch {
     return false
   }
+}
+
+/** author が貼ってよいステッカーなら true。自分のもの、または成立した交換で受け取ったもの */
+export async function canPlace(author: Did, sticker: StrongRef): Promise<boolean> {
+  return new AtUri(sticker.uri).host === author || (await hasReceived(author, sticker))
 }
 
 interface StickerImage {
@@ -138,9 +145,9 @@ interface StickerImage {
 }
 
 /** 貼られたステッカーの画像と大きさ。読めない（削除された）ものは undefined */
-function loadStickerImage(author: Did, ref: StrongRef): Promise<StickerImage | undefined> {
+function loadStickerImage(ref: StrongRef): Promise<StickerImage | undefined> {
   return getSticker(ref)
-    .then(async (s) => ({ imageUrl: await stickerImageUrl(author, s), width: s.width, height: s.height }))
+    .then(async (s) => ({ imageUrl: await stickerImageUrl(new AtUri(ref.uri).host, s), width: s.width, height: s.height }))
     .catch(() => undefined)
 }
 
@@ -148,6 +155,7 @@ function toFieldItem(uri: string, author: Did, value: FieldPlacement, s: Sticker
   return {
     uri,
     author,
+    owner: new AtUri(value.sticker.uri).host,
     placement: toPlacementOnly(value),
     createdAt: value.createdAt,
     imageUrl: s?.imageUrl,
@@ -156,20 +164,22 @@ function toFieldItem(uri: string, author: Did, value: FieldPlacement, s: Sticker
   }
 }
 
-/** field.placement 1件を画面に出す形にする（Jetstream で受け取ったとき） */
-export async function loadFieldItem(uri: string, author: Did, value: FieldPlacement): Promise<FieldItem> {
-  return toFieldItem(uri, author, value, await loadStickerImage(author, value.sticker))
+/** field.placement 1件を画面に出す形にする（Jetstream で受け取ったとき）。貼ってよくないステッカーなら undefined */
+export async function loadFieldItem(uri: string, author: Did, value: FieldPlacement): Promise<FieldItem | undefined> {
+  const [ok, image] = await Promise.all([canPlace(author, value.sticker), loadStickerImage(value.sticker)])
+  return ok ? toFieldItem(uri, author, value, image) : undefined
 }
 
-/** メンバー全員の PDS から、このフィールドを指す field.placement を読む。自分のものでないステッカーを貼ったものは数えない */
+/** メンバー全員の PDS から、このフィールドを指す field.placement を読む。自分のものでも交換で受け取ったものでもないステッカーを貼ったものは数えない */
 export async function listFieldItems(fieldUri: string, members: Did[]): Promise<FieldItem[]> {
   const perMember = await Promise.all(
     members.map(async (member) => {
       try {
-        const records = await listPublicRecords<FieldPlacement>(member, NSID.fieldPlacement)
-        return records
-          .filter(({ value }) => isOwnPlacement(member, value, fieldUri))
-          .map((r) => ({ uri: r.uri, author: member, value: r.value }))
+        const records = (await listPublicRecords<FieldPlacement>(member, NSID.fieldPlacement)).filter(({ value }) =>
+          isFieldPlacement(value, fieldUri),
+        )
+        const allowed = await Promise.all(records.map(({ value }) => canPlace(member, value.sticker)))
+        return records.filter((_, i) => allowed[i]).map((r) => ({ uri: r.uri, author: member, value: r.value }))
       } catch {
         // PDS が読めないメンバーの分は出さない
         return []
@@ -180,9 +190,9 @@ export async function listFieldItems(fieldUri: string, members: Did[]): Promise<
 
   // 同じステッカーは1回だけ読む
   const stickers = new Map<string, Promise<StickerImage | undefined>>()
-  for (const { author, value } of records) {
+  for (const { value } of records) {
     const key = `${value.sticker.uri}#${value.sticker.cid}`
-    if (!stickers.has(key)) stickers.set(key, loadStickerImage(author, value.sticker))
+    if (!stickers.has(key)) stickers.set(key, loadStickerImage(value.sticker))
   }
 
   return Promise.all(
@@ -199,7 +209,7 @@ export async function createFieldPlacement(
   field: StrongRef,
   placement: Placement,
 ): Promise<{ uri: string; createdAt: string }> {
-  if (new AtUri(placement.sticker.uri).host !== did) throw new Error('自分のステッカーだけを貼れます')
+  if (!(await canPlace(did, placement.sticker))) throw new Error('自分のステッカーと、交換で受け取ったステッカーだけを貼れます')
   const createdAt = new Date().toISOString()
   const record: FieldPlacement = { $type: NSID.fieldPlacement, field, ...placement, createdAt }
   const { data } = await agent.com.atproto.repo.createRecord({ repo: did, collection: NSID.fieldPlacement, record: { ...record } })

@@ -1,7 +1,7 @@
 // 共同フィールドの変更をその場で受け取る。Bluesky の Jetstream（公開の書き込みの流れ）にブラウザから直接つなぐ。
 // サーバーを通さないので Render が寝ていても動く。中身は署名を確かめていないので、画面側で定期的に PDS を読み直して正す。
 import { NSID, type Did, type FieldPlacement } from '../lexicon-types.ts'
-import { isOwnPlacement } from './field.ts'
+import { isFieldPlacement } from './field.ts'
 
 // 公開の Jetstream。つながらなければ次のホストを試す
 const HOSTS = [
@@ -38,7 +38,7 @@ function parse(data: unknown, fieldUri: string): FieldPlacementEvent | undefined
   // 消したときは中身が来ないので、どのフィールドのものかは画面側で uri から見る
   if (commit.operation === 'delete') return { type: 'delete', uri, author: did }
   if (commit.operation !== 'create' && commit.operation !== 'update') return undefined
-  if (!isOwnPlacement(did, commit.record, fieldUri)) return undefined
+  if (!isFieldPlacement(commit.record, fieldUri)) return undefined
   return { type: 'put', uri, author: did, value: commit.record }
 }
 

@@ -1,5 +1,5 @@
 // S8 共同フィールド。メンバー全員の field.placement を1枚のキャンバスに重ねる。
-// 自分のステッカー（交換で受け取ったものは除く）だけを貼れ、動かし終わって1秒たったら自分の field.placement を書き直す。
+// 手持ちのステッカー（自分のもの＋成立した交換で受け取ったもの）を貼れ、動かし終わって1秒たったら自分の field.placement を書き直す。
 // 他のメンバーの貼り付け・移動・削除は Jetstream（api/fieldLive.ts）でその場に反映する。
 // 自分の貼り付けは選んで「はがす」で消せる。作った人は「フィールドを削除」、それ以外は「抜ける」。
 import { AtUri } from '@atproto/api'
@@ -7,7 +7,7 @@ import QRCode from 'qrcode'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { BackendError, getFieldMembers, joinField } from '../api/backend.ts'
-import { centerPlacement, listOwnRecords } from '../api/binder.ts'
+import { centerPlacement, listOwnedStickers, type OwnedSticker } from '../api/binder.ts'
 import {
   FieldDeletedError,
   createFieldPlacement,
@@ -26,15 +26,16 @@ import {
   type FieldView,
 } from '../api/field.ts'
 import { subscribeFieldPlacements } from '../api/fieldLive.ts'
-import { resolveDid, stickerImageUrl } from '../api/sticker.ts'
+import { resolveDid } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
+import Handle from '../components/Handle.tsx'
 import { ProfileAvatar } from '../components/Profile.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 import WantButton from '../components/WantButton.tsx'
-import { NSID, type Did, type FieldPlacement, type Placement, type StrongRef, type Sticker } from '../lexicon-types.ts'
+import { NSID, type Did, type FieldPlacement, type Placement } from '../lexicon-types.ts'
 
 const SAVE_DELAY_MS = 1000
 // Jetstream の取りこぼし（切れていたあいだ・署名を確かめていない中身）を PDS から読み直して正す間隔
@@ -51,12 +52,6 @@ const SAVE_LABEL: Record<SaveState, string> = {
   saving: '保存しています…',
   saved: '保存しました',
   error: '保存できませんでした。もう一度動かすと保存し直します',
-}
-
-interface MySticker {
-  ref: StrongRef
-  sticker: Sticker
-  imageUrl: string
 }
 
 function errorMessage(e: unknown): string {
@@ -130,7 +125,7 @@ export default function Field() {
   const [membersError, setMembersError] = useState<string>()
   const [handles, setHandles] = useState<Record<Did, string>>({})
   const [items, setItems] = useState<FieldItem[]>()
-  const [mine, setMine] = useState<MySticker[]>()
+  const [mine, setMine] = useState<OwnedSticker[]>()
   const [error, setError] = useState<string>()
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [pasting, setPasting] = useState(false)
@@ -217,10 +212,7 @@ export default function Field() {
       if (f) await refresh(() => cancelled)
     })().catch((e: unknown) => !cancelled && setError(errorMessage(e)))
 
-    listOwnRecords<Sticker>(agent, me, NSID.sticker)
-      .then((records) =>
-        Promise.all(records.map(async (r) => ({ ref: { uri: r.uri, cid: r.cid }, sticker: r.value, imageUrl: await stickerImageUrl(me, r.value) }))),
-      )
+    listOwnedStickers(agent, me)
       .then((list) => !cancelled && setMine(list))
       .catch(() => !cancelled && setMine([]))
     return () => {
@@ -263,7 +255,8 @@ export default function Field() {
         void loadFieldItem(event.uri, event.author, event.value).then((item) => {
           // 読んでいるあいだにさらに新しい変更が来ていれば、そちらに任せる
           if (stopped || liveLatest.current.get(event.uri) !== event.value) return
-          setItems((list) => list && [...list.filter((i) => i.uri !== event.uri), item])
+          // 貼ってよくないステッカーに貼り替えたものは消す
+          setItems((list) => list && [...list.filter((i) => i.uri !== event.uri), ...(item ? [item] : [])])
         })
       },
     })
@@ -366,7 +359,7 @@ export default function Field() {
     update(uri, items.map((item) => (item.uri === uri ? { ...item, placement } : item)))
   }
 
-  async function paste(sticker: MySticker) {
+  async function paste(sticker: OwnedSticker) {
     if (!agent || !me || !field || !items) return
     setPasting(true)
     setSaveState('saving')
@@ -375,7 +368,7 @@ export default function Field() {
       const { uri, createdAt } = await createFieldPlacement(agent, me, field.ref, placement)
       setItems((list) => [
         ...(list ?? []),
-        { uri, author: me, placement, createdAt, imageUrl: sticker.imageUrl, width: sticker.sticker.width, height: sticker.sticker.height },
+        { uri, author: me, owner: sticker.owner, placement, createdAt, imageUrl: sticker.imageUrl, width: sticker.sticker.width, height: sticker.sticker.height },
       ])
       setSaveState('saved')
     } catch (e) {
@@ -567,7 +560,16 @@ export default function Field() {
 
       {tapped && (
         <div role="dialog" className="card field-tapped">
-          <p>{nameOf(tapped.author)} のピクルスです。交換すると自分のビンに貼れます</p>
+          <p>
+            {tapped.owner === tapped.author ? (
+              <>{nameOf(tapped.author)} のピクルスです。</>
+            ) : (
+              <>
+                <Handle did={tapped.owner} /> のピクルスです（{nameOf(tapped.author)} が交換で受け取って貼りました）。
+              </>
+            )}
+            交換すると自分のビンに貼れます
+          </p>
           <div className="field-tapped-actions">
             {agent && me && <WantButton key={tapped.uri} agent={agent} did={me} subject={tapped.placement.sticker} />}
             <button type="button" className="btn btn-primary" onClick={() => navigate('/exchange')}>
@@ -576,7 +578,7 @@ export default function Field() {
             <button
               type="button"
               className="btn"
-              onClick={() => navigate(`/sticker/${encodeURIComponent(tapped.author)}/${encodeURIComponent(new AtUri(tapped.placement.sticker.uri).rkey)}`)}
+              onClick={() => navigate(`/sticker/${encodeURIComponent(tapped.owner)}/${encodeURIComponent(new AtUri(tapped.placement.sticker.uri).rkey)}`)}
             >
               詳細
             </button>
@@ -604,6 +606,12 @@ export default function Field() {
             {mine?.map((sticker) => (
               <button key={sticker.ref.uri} type="button" className="binder-hand-item" onClick={() => void paste(sticker)} disabled={!items || pasting}>
                 <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ピクルス'} width={THUMB_SIZE} height={THUMB_SIZE} />
+                {/* 交換でもらったものには、くれた人のアイコンを付ける */}
+                {sticker.owner !== me && (
+                  <span className="binder-hand-owner">
+                    <ProfileAvatar did={sticker.owner} />
+                  </span>
+                )}
               </button>
             ))}
           </div>

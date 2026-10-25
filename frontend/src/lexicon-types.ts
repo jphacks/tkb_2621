@@ -104,7 +104,7 @@ export interface FieldMember {
   createdAt: Datetime
 }
 
-/** com.kosora623.pikkles.field.placement（貼った人の PDS。自分のステッカーのみ） */
+/** com.kosora623.pikkles.field.placement（貼った人の PDS。自分のステッカーと、成立した交換で受け取ったステッカー） */
 export interface FieldPlacement extends Placement {
   $type: typeof NSID.fieldPlacement
   field: StrongRef
