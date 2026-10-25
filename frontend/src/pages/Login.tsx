@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext.tsx'
-import Avatar from '../components/Avatar.tsx'
+import { ProfileAvatar } from '../components/Profile.tsx'
 import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
 
@@ -17,7 +17,7 @@ export default function Login() {
       <>
         <PageHeader title="アカウント" />
         <div className="card account-card">
-          <Avatar did={auth.did} size={48} />
+          <ProfileAvatar did={auth.did} size={48} />
           <div className="account-names">
             <p className="account-handle">@{auth.handle}</p>
             <p className="text-muted account-did">{auth.did}</p>
