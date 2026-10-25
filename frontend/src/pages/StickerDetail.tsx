@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { listOwnRecords } from '../api/binder.ts'
 import { getPartnerMessage } from '../api/exchange.ts'
-import { firstLine, getProfile, type Profile } from '../api/profile.ts'
+import { getProfile, type Profile } from '../api/profile.ts'
 import { deleteSticker, getStickerByRkey } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import Avatar from '../components/Avatar.tsx'
 import Handle from '../components/Handle.tsx'
-import StickerImage, { StickerBackdrop } from '../components/StickerImage.tsx'
+import StickerImage from '../components/StickerImage.tsx'
 import { NSID, type Did, type Exchange, type StrongRef, type Sticker } from '../lexicon-types.ts'
 
 type State = { status: 'loading' } | { status: 'gone' } | { status: 'ok'; ref: StrongRef; sticker: Sticker }
@@ -21,12 +21,12 @@ function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
+/** 2026/10/25 14:05 */
 function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-const muted = { color: 'var(--color-text-muted)', fontSize: 'var(--font-size-md)' }
-const oneLine = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const
+const AVATAR_SIZE = 38
 
 type ProfileState = { status: 'loading' } | { status: 'failed' } | { status: 'ok'; profile: Profile }
 
@@ -46,34 +46,35 @@ function ProfileCard({ did }: { did: Did }) {
   }, [did])
 
   const profile = state.status === 'ok' ? state.profile : undefined
-  const bio = firstLine(profile?.description)
+  const bio = profile?.description?.trim()
 
   return (
-    <section className="card" aria-busy={state.status === 'loading'} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-      {state.status === 'loading' ? (
-        <span className="avatar" style={{ width: 48, height: 48, background: 'var(--color-surface-muted)' }} />
-      ) : profile?.avatar ? (
-        <img src={profile.avatar} alt="" width={48} height={48} style={{ flex: 'none', borderRadius: '50%', objectFit: 'cover' }} />
-      ) : (
-        <Avatar did={did} size={48} />
-      )}
-      <div style={{ minWidth: 0, flex: 1 }}>
-        {state.status === 'loading' && (
-          <div style={{ height: 14, width: '60%', borderRadius: 'var(--radius-xs)', background: 'var(--color-surface-muted)' }} />
+    <section className="detail-card" aria-busy={state.status === 'loading'}>
+      <h2 className="detail-card-label">作成者</h2>
+      <div className="detail-profile">
+        {state.status === 'loading' ? (
+          <span className="avatar detail-skeleton" style={{ width: AVATAR_SIZE, height: AVATAR_SIZE }} />
+        ) : profile?.avatar ? (
+          <img className="detail-profile-avatar" src={profile.avatar} alt="" width={AVATAR_SIZE} height={AVATAR_SIZE} />
+        ) : (
+          <Avatar did={did} size={AVATAR_SIZE} />
         )}
-        {state.status === 'failed' && (
-          <p style={{ margin: 0, fontWeight: 'var(--font-weight-bold)', ...oneLine }}>
-            <Handle did={did} />
-          </p>
-        )}
-        {profile && (
-          <>
-            <p style={{ margin: 0, fontWeight: 'var(--font-weight-bold)', ...oneLine }}>{profile.displayName || `@${profile.handle}`}</p>
-            <p style={{ margin: 0, ...muted, ...oneLine }}>@{profile.handle}</p>
-            {bio && <p style={{ margin: 'var(--space-1) 0 0', ...oneLine }}>{bio}</p>}
-          </>
-        )}
+        <div className="detail-profile-names">
+          {state.status === 'loading' && <div className="detail-skeleton detail-skeleton-line" />}
+          {state.status === 'failed' && (
+            <p className="detail-profile-name">
+              <Handle did={did} />
+            </p>
+          )}
+          {profile && (
+            <>
+              <p className="detail-profile-name">{profile.displayName || `@${profile.handle}`}</p>
+              <p className="detail-profile-handle">@{profile.handle}</p>
+            </>
+          )}
+        </div>
       </div>
+      {bio && <p className="detail-profile-bio">{bio}</p>}
     </section>
   )
 }
@@ -93,22 +94,24 @@ function ExchangeCard({ exchange }: { exchange: Exchange }) {
   }, [exchange.partner, exchange.sessionId])
 
   return (
-    <section className="card">
-      <p style={{ margin: '0 0 var(--space-2)', fontWeight: 'var(--font-weight-bold)' }}>交換の記録</p>
-      <dl style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 'var(--space-1) var(--space-3)', margin: 0 }}>
-        <dt style={muted}>日時</dt>
-        <dd style={{ margin: 0 }}>{formatDateTime(exchange.createdAt)}</dd>
+    <section className="detail-card detail-exchange">
+      <h2 className="detail-exchange-title">交換の記録</h2>
+      <dl className="detail-exchange-list">
+        <div className="detail-exchange-row">
+          <dt>日時</dt>
+          <dd>{formatDateTime(exchange.createdAt)}</dd>
+        </div>
         {exchange.occasion && (
-          <>
-            <dt style={muted}>場所</dt>
-            <dd style={{ margin: 0 }}>{exchange.occasion}</dd>
-          </>
+          <div className="detail-exchange-row">
+            <dt>場所</dt>
+            <dd>{exchange.occasion}</dd>
+          </div>
         )}
         {message && (
-          <>
-            <dt style={muted}>相手からの一言</dt>
-            <dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{message}</dd>
-          </>
+          <div className="detail-exchange-row detail-exchange-row-stack">
+            <dt>コメント</dt>
+            <dd>{message}</dd>
+          </div>
         )}
       </dl>
     </section>
@@ -178,26 +181,27 @@ export default function StickerDetail() {
   }
 
   return (
-    <StickerBackdrop>
-      <button type="button" onClick={() => navigate(-1)}>
-        ← 戻る
+    <>
+      <button type="button" className="icon-button detail-back" onClick={() => navigate(-1)} aria-label="戻る">
+        <img src="/images/back.svg" alt="" width={13} height={18} />
       </button>
 
       {state.status === 'loading' && <p>読み込み中…</p>}
-      {state.status === 'gone' && <p style={{ marginTop: 48, textAlign: 'center' }}>このピクルスは削除されました</p>}
+      {state.status === 'gone' && <p className="detail-gone">このピクルスは削除されました</p>}
       {state.status === 'ok' && (
         <>
-          <div style={{ margin: '16px 0' }}>
-            <StickerImage did={did} sticker={state.sticker} maxHeight={360} />
+          <div className="detail-image">
+            <StickerImage did={did} sticker={state.sticker} maxHeight={220} />
           </div>
-          {state.sticker.caption && (
-            <p style={{ margin: '0 0 var(--space-1)', fontWeight: 'var(--font-weight-bold)', textAlign: 'center' }}>{state.sticker.caption}</p>
-          )}
-          <p style={{ margin: '0 0 var(--space-4)', textAlign: 'center', ...muted }}>
-            {formatDateTime(state.sticker.createdAt)}・{state.sticker.source === 'photo' ? '写真' : 'イラスト'}
+          <p className="detail-meta">
+            <span className={state.sticker.source === 'photo' ? 'tag' : 'tag tag-illustration'}>
+              {state.sticker.source === 'photo' ? '写真' : 'イラスト'}
+            </span>
+            {formatDateTime(state.sticker.createdAt)}につくった
           </p>
+          {state.sticker.caption && <h1 className="detail-name">{state.sticker.caption}</h1>}
 
-          <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+          <div className="detail-cards">
             <ProfileCard did={did} />
             {exchanges.map((x) => (
               <ExchangeCard key={x.sessionId} exchange={x} />
@@ -205,8 +209,8 @@ export default function StickerDetail() {
           </div>
 
           {myDid === did && (
-            <div style={{ marginTop: 24 }}>
-              <button type="button" onClick={onDelete} disabled={deleting} style={{ color: '#c00' }}>
+            <div className="detail-delete">
+              <button type="button" className="btn btn-block" onClick={onDelete} disabled={deleting}>
                 {deleting ? '削除しています…' : '削除'}
               </button>
               {deleteError && <p role="alert">{deleteError}</p>}
@@ -214,6 +218,6 @@ export default function StickerDetail() {
           )}
         </>
       )}
-    </StickerBackdrop>
+    </>
   )
 }
