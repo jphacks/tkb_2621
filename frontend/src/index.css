@@ -922,6 +922,12 @@ label:focus-within:has(> .visually-hidden) {
   cursor: pointer;
 }
 
+.binder-hand-item {
+  /* 長押しで詳細へ跳ぶので、iOS の画像メニューや文字選択を出さない */
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
 .binder-hand-item img {
   object-fit: contain;
 }
