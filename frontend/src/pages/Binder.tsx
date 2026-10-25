@@ -8,7 +8,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { centerPlacement, findDeletedStickers, getPage, listOwnedStickers, listPageNumbers, putPage, type OwnedSticker } from '../api/binder.ts'
 import { readCache, writeCache } from '../api/screenCache.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
-import Avatar from '../components/Avatar.tsx'
+import { ProfileAvatar } from '../components/Profile.tsx'
 import BinderCanvas, { type CanvasItem } from '../components/BinderCanvas.tsx'
 import Loading from '../components/Loading.tsx'
 import PageHeader from '../components/PageHeader.tsx'
@@ -334,7 +334,7 @@ export default function Binder() {
               {/* 交換でもらったものには、くれた人のアイコンを付ける */}
               {sticker.owner !== did && (
                 <span className="binder-hand-owner">
-                  <Avatar did={sticker.owner} />
+                  <ProfileAvatar did={sticker.owner} />
                 </span>
               )}
             </button>
