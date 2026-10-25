@@ -733,6 +733,95 @@ label:focus-within:has(> .visually-hidden) {
 }
 
 /* 透過がわかるように市松模様に載せる */
+.trim-viewer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 342px;
+  padding: var(--space-4);
+  border-radius: var(--radius-button);
+  background: var(--color-viewer);
+}
+
+.trim-stage {
+  position: relative;
+  line-height: 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.trim-stage img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+}
+
+.trim-shade {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.trim-hole {
+  position: absolute;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+}
+
+.trim-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  cursor: move;
+  touch-action: none;
+}
+
+.trim-handle {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+  touch-action: none;
+}
+
+.trim-handle-nw {
+  top: -11px;
+  left: -11px;
+  cursor: nwse-resize;
+}
+
+.trim-handle-ne {
+  top: -11px;
+  right: -11px;
+  cursor: nesw-resize;
+}
+
+.trim-handle-sw {
+  bottom: -11px;
+  left: -11px;
+  cursor: nesw-resize;
+}
+
+.trim-handle-se {
+  right: -11px;
+  bottom: -11px;
+  cursor: nwse-resize;
+}
+
+.trim-hint {
+  margin: var(--space-3) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.trim-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
 .capture-image {
   display: flex;
   align-items: center;
