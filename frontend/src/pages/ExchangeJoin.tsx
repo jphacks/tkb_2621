@@ -54,9 +54,15 @@ export default function ExchangeJoin() {
   if (state.kind === 'error') {
     return (
       <>
-        <h1>対面交換</h1>
-        <p role="alert">{state.message}</p>
-        <Link to="/">ホームへ</Link>
+        <div className="back-header">
+          <h1>対面で交換</h1>
+        </div>
+        <p role="alert" className="notice exchange-notice">
+          {state.message}
+        </p>
+        <Link to="/" className="btn btn-primary btn-block exchange-bottom">
+          ホームへ
+        </Link>
       </>
     )
   }
@@ -64,9 +70,13 @@ export default function ExchangeJoin() {
   if (state.kind === 'joining') {
     return (
       <>
-        <h1>対面交換</h1>
+        <div className="back-header">
+          <h1>対面で交換</h1>
+        </div>
         <BackendWaking />
-        <p>参加しています…</p>
+        <p role="status" className="exchange-progress">
+          参加しています…
+        </p>
       </>
     )
   }

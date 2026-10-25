@@ -12,9 +12,6 @@ import type { Sticker } from '../lexicon-types.ts'
 
 type Source = Sticker['source']
 
-// スマホは input の capture 属性で端末のカメラアプリを開く。パソコンでは開かないので画面の中でカメラを映す
-const isTouchDevice = window.matchMedia('(pointer: coarse)').matches
-
 type Step =
   | { kind: 'choose' }
   | { kind: 'cutting' }
@@ -166,24 +163,8 @@ export default function Capture() {
         </button>
       </div>
 
-      {mode === 'camera' && !isTouchDevice ? (
+      {mode === 'camera' ? (
         <WebcamCapture onCapture={(file) => void makeSticker(file, 'photo')} />
-      ) : mode === 'camera' ? (
-        <>
-          <div className="capture-viewer">
-            <div className="capture-frame">下のボタンでカメラが開きます</div>
-            <p>
-              モノを枠の中に。背景は自動で消えます
-              <br />
-              紙に描いたイラストもそのまま撮れます
-            </p>
-          </div>
-          <label className="capture-shutter">
-            <input type="file" className="visually-hidden" accept="image/*" capture="environment" onChange={(e) => onFile(e, 'photo')} />
-            <img src="/images/shutter.svg" alt="" width={63} height={63} />
-            <span className="visually-hidden">撮影する</span>
-          </label>
-        </>
       ) : (
         <div className="capture-files">
           <section className="card">

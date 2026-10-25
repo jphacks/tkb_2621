@@ -1,7 +1,9 @@
 // S4 シール帳。手持ちのステッカーをページに貼り、動かし終わって1秒たったら binder.page に保存する。
 // 選んだものは「はがす」でページから外せる（ステッカー本体は消さない）。削除されたステッカーの配置は保存のときに落とす。
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+// 手持ちのステッカーは長押しするとステッカー詳細へ跳ぶ。
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react'
+import { AtUri } from '@atproto/api'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { centerPlacement, findDeletedStickers, getPage, listOwnedStickers, listPageNumbers, putPage, type OwnedSticker } from '../api/binder.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import Avatar from '../components/Avatar.tsx'
@@ -12,6 +14,9 @@ import type { Placement } from '../lexicon-types.ts'
 
 const SAVE_DELAY_MS = 1000
 const THUMB_SIZE = 48
+const LONG_PRESS_MS = 500
+/** これより指が動いたら長押しをやめる（手持ちの列を横にスクロールしているとき） */
+const LONG_PRESS_SLOP_PX = 10
 
 type SaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
@@ -24,6 +29,11 @@ let nextId = 0
 function newId(): string {
   nextId += 1
   return `p${nextId}`
+}
+
+function stickerPath(uri: string): string {
+  const at = new AtUri(uri)
+  return `/sticker/${encodeURIComponent(at.host)}/${encodeURIComponent(at.rkey)}`
 }
 
 function errorMessage(e: unknown): string {
@@ -42,6 +52,7 @@ export default function Binder() {
   const auth = useAuth()
   const agent = auth.status === 'signedIn' ? auth.agent : undefined
   const did = auth.status === 'signedIn' ? auth.did : undefined
+  const navigate = useNavigate()
 
   const [owned, setOwned] = useState<OwnedSticker[]>()
   const [ownedError, setOwnedError] = useState<string>()
@@ -129,6 +140,12 @@ export default function Binder() {
     }
   }, [agent, did, page])
 
+  const press = useRef<{ timer: number; x: number; y: number }>(undefined)
+  // 長押しが成立した直後に来る click で貼らないようにする
+  const longPressed = useRef(false)
+
+  useEffect(() => () => window.clearTimeout(press.current?.timer), [])
+
   if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut') return <Navigate to="/login" replace />
 
@@ -142,7 +159,31 @@ export default function Binder() {
     return list.reduce((m, item) => Math.max(m, item.placement.z), -1)
   }
 
+  function startPress(e: PointerEvent, sticker: OwnedSticker) {
+    longPressed.current = false
+    window.clearTimeout(press.current?.timer)
+    const timer = window.setTimeout(() => {
+      press.current = undefined
+      longPressed.current = true
+      navigate(stickerPath(sticker.ref.uri))
+    }, LONG_PRESS_MS)
+    press.current = { timer, x: e.clientX, y: e.clientY }
+  }
+
+  function movePress(e: PointerEvent) {
+    if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > LONG_PRESS_SLOP_PX) cancelPress()
+  }
+
+  function cancelPress() {
+    window.clearTimeout(press.current?.timer)
+    press.current = undefined
+  }
+
   function paste(sticker: OwnedSticker) {
+    if (longPressed.current) {
+      longPressed.current = false
+      return
+    }
     if (!items) return
     update([...items, { id: newId(), placement: centerPlacement(sticker.ref, maxZ(items) + 1) }])
   }
@@ -243,15 +284,27 @@ export default function Binder() {
         )}
         <div className="binder-hand-header">
           <h2 className="section-title">手持ちのステッカー</h2>
-          {owned && owned.length > 0 && <span className="binder-hand-hint">{owned.length}枚・タップして貼る</span>}
+          {owned && owned.length > 0 && <span className="binder-hand-hint">{owned.length}枚・タップして貼る・長押しで詳しく</span>}
         </div>
         {ownedError && <p role="alert">手持ちを読めませんでした：{ownedError}</p>}
         {!owned && !ownedError && <p className="text-muted">読み込み中…</p>}
         {owned?.length === 0 && <p className="text-muted">まだステッカーがありません</p>}
         <div className="binder-hand">
           {owned?.map((sticker) => (
-            <button key={sticker.ref.uri} type="button" className="binder-hand-item" onClick={() => paste(sticker)} disabled={!items}>
-              <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ステッカー'} width={THUMB_SIZE} height={THUMB_SIZE} />
+            <button
+              key={sticker.ref.uri}
+              type="button"
+              className="binder-hand-item"
+              onClick={() => paste(sticker)}
+              onPointerDown={(e) => startPress(e, sticker)}
+              onPointerMove={movePress}
+              onPointerUp={cancelPress}
+              onPointerLeave={cancelPress}
+              onPointerCancel={cancelPress}
+              onContextMenu={(e) => e.preventDefault()}
+              disabled={!items}
+            >
+              <img src={sticker.imageUrl} alt={sticker.sticker.caption ?? 'ステッカー'} width={THUMB_SIZE} height={THUMB_SIZE} draggable={false} />
               {/* 交換でもらったものには、くれた人のアイコンを付ける */}
               {sticker.owner !== did && (
                 <span className="binder-hand-owner">
