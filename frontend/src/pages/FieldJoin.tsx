@@ -92,7 +92,7 @@ export default function FieldJoin() {
           <p className="field-invite-text">
             「{field.title}」に招待されています。
             <br />
-            参加すると、自分のステッカーをここに貼れます。
+            参加すると、自分のピクルスをここに貼れます。
           </p>
           <button type="button" className="btn btn-primary btn-block" onClick={onJoin} disabled={joining}>
             {joining ? '参加しています…' : '参加する'}
