@@ -1677,6 +1677,17 @@ label:focus-within:has(> .visually-hidden) {
   background: var(--color-surface);
 }
 
+/* 作成者のカード。全体が Bluesky のプロフィールへのリンク */
+.detail-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.detail-card-link:active {
+  background: var(--color-bg);
+}
+
 .detail-card-label {
   margin: 0 0 var(--space-1);
   color: var(--color-text-muted);
