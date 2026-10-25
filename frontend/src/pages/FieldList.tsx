@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { joinField } from '../api/backend.ts'
-import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, fieldPath, listJoinedFields, type JoinedField } from '../api/field.ts'
+import { FIELD_TITLE_MAX, cleanupClosedOwnFields, createField, discardCreatedField, fieldPath, listJoinedFields, type JoinedField } from '../api/field.ts'
 import { countGraphemes } from '../api/sticker.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 import BackendWaking from '../components/BackendWaking.tsx'
@@ -52,7 +52,13 @@ export default function FieldList() {
     setCreateError(undefined)
     try {
       const ref = await createField(agent, did, title)
-      await joinField(agent, ref)
+      try {
+        await joinField(agent, ref)
+      } catch (err) {
+        // 一覧に「作れなかった」フィールドが残り、作り直すと2つになるので、書いたものを消しておく
+        await discardCreatedField(agent, did, ref).catch(() => undefined)
+        throw err
+      }
       navigate(fieldPath(ref))
     } catch (e) {
       setCreateError(`作れませんでした：${errorMessage(e)}`)
