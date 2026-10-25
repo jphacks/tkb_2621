@@ -126,6 +126,8 @@ export default function ExchangeRoom(props: {
   /** 相手が選び直したので、自分の確定が取り消された */
   const [partnerChanged, setPartnerChanged] = useState(false)
   const [partnerImage, setPartnerImage] = useState<string>()
+  /** 相手が選んだステッカーのピクルス名（付いていなければ undefined） */
+  const [partnerCaption, setPartnerCaption] = useState<string>()
   const [partnerHandle, setPartnerHandle] = useState<string>()
   const [rejected, setRejected] = useState(false)
   /** 相手が「ほしい」を付けたステッカーの URI */
@@ -160,13 +162,17 @@ export default function ExchangeRoom(props: {
     }
   }, [agent, did])
 
-  // 相手の選んだステッカーの画像とハンドル
+  // 相手の選んだステッカーの画像・ピクルス名とハンドル
   useEffect(() => {
     if (!partnerRef) return
     let cancelled = false
     const owner = new AtUri(partnerRef.uri).host
+    setPartnerCaption(undefined)
     getSticker(partnerRef)
-      .then((sticker) => stickerImageUrl(owner, sticker))
+      .then((sticker) => {
+        if (!cancelled) setPartnerCaption(sticker.caption || undefined)
+        return stickerImageUrl(owner, sticker)
+      })
       .then((url) => !cancelled && setPartnerImage(url))
       .catch(() => !cancelled && setPartnerImage(undefined))
     resolveDid(owner)
@@ -337,6 +343,7 @@ export default function ExchangeRoom(props: {
       <div className="exchange-done">
         <h1>交換成立!</h1>
         {partnerImage && <img src={partnerImage} alt="受け取ったピクルス" width={IMAGE_SIZE * 2} className="exchange-done-image" />}
+        {partnerCaption && <p className="exchange-done-name">{partnerCaption}</p>}
         <p>{partnerHandle ? `@${partnerHandle}` : partner}とピクルスを交換しました</p>
         <p className="exchange-done-meta">
           {shownOccasion && <span className="tag tag-place">{shownOccasion}</span>}

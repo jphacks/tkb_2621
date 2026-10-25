@@ -1584,6 +1584,12 @@ label:focus-within:has(> .visually-hidden) {
   height: auto;
 }
 
+.exchange-done-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
 .exchange-done-meta {
   display: flex;
   flex-wrap: wrap;
