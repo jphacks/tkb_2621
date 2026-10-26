@@ -1,7 +1,8 @@
 // 使い方。撮影 → トリミング → 公開の確認をして保存 → ビンに貼る、までを1枚ずつ見せる。
-// 初めてタイムラインを開いたときに一度だけここへ送る。見終わる・スキップすると印を付け、次からは送らない。
+// 初めてタブの画面を開いたときに一度だけここへ送る（App.tsx）。見終わる・スキップすると印を付け、次からは送らない。
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext.tsx'
 import { markTutorialSeen } from '../components/tutorial.ts'
 
 interface Step {
@@ -53,13 +54,14 @@ const STEPS: Step[] = [
 ]
 
 export default function Tutorial() {
+  const auth = useAuth()
   const navigate = useNavigate()
   const [index, setIndex] = useState(0)
   const step = STEPS[index]
   const last = index === STEPS.length - 1
 
   function finish(to: string) {
-    markTutorialSeen()
+    if (auth.status === 'signedIn') markTutorialSeen(auth.did)
     navigate(to, { replace: true })
   }
 
