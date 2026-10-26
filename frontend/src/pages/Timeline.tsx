@@ -11,7 +11,6 @@ import BackendWaking from '../components/BackendWaking.tsx'
 import Loading from '../components/Loading.tsx'
 import { DisplayName, ProfileAvatar } from '../components/Profile.tsx'
 import StickerImage from '../components/StickerImage.tsx'
-import { tutorialSeen } from '../components/tutorial.ts'
 import WantButton from '../components/WantButton.tsx'
 import type { Did, Sticker, StrongRef } from '../lexicon-types.ts'
 
@@ -194,8 +193,6 @@ export default function Timeline() {
 
   if (auth.status === 'loading') return <Loading />
   if (auth.status === 'signedOut' || !agent) return <Navigate to="/login" replace />
-  // 初めて開いたときは、先に使い方を見てもらう
-  if (!tutorialSeen()) return <Navigate to="/tutorial" replace />
 
   const shown = dedupe(items)
 

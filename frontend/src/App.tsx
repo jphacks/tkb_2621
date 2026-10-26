@@ -1,8 +1,10 @@
 import { lazy, Suspense } from 'react'
-import { Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { useAuth } from './auth/AuthContext.tsx'
 import ConsentGate, { useNeedsConsent } from './components/ConsentGate.tsx'
 import PageHeader from './components/PageHeader.tsx'
 import TabBar from './components/TabBar.tsx'
+import { tutorialSeen } from './components/tutorial.ts'
 import Loading from './components/Loading.tsx'
 import Login from './pages/Login.tsx'
 import OAuthCallback from './pages/OAuthCallback.tsx'
@@ -34,10 +36,19 @@ function headerTitle(pathname: string): string | undefined {
   return undefined
 }
 
+// 使い方へ送ってよい画面。交換や共同フィールドの参加（QR から来た人）は途中で止めないよう、ここに入れない
+const TUTORIAL_FROM = ['/', '/capture', '/binder', '/binder/list', '/fields', '/account']
+
 // ヘッダーとタブはスクロールの外に置き、いつも画面の上下に出しておく。同意の画面を出している間はどちらも隠す
 function TabLayout() {
-  const title = headerTitle(useLocation().pathname)
+  const { pathname } = useLocation()
+  const title = headerTitle(pathname)
+  const auth = useAuth()
   const needsConsent = useNeedsConsent()
+  // 同意が済んだあと、そのアカウントで初めてタブの画面を開いたら、先に使い方を見てもらう
+  if (auth.status === 'signedIn' && !needsConsent && TUTORIAL_FROM.includes(pathname) && !tutorialSeen(auth.did)) {
+    return <Navigate to="/tutorial" replace />
+  }
   return (
     <>
       {title && !needsConsent && <PageHeader title={title} />}

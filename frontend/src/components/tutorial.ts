@@ -1,19 +1,23 @@
-// 使い方を見たかどうか。初めてタイムラインを開いたときだけ使い方へ送るのに使う
-const SEEN_KEY = 'pikkles:tutorial-seen'
+// 使い方を見たかどうか。アカウントごとに覚え、初めてタブの画面を開いたときに一度だけ使い方へ送るのに使う
+const KEY_PREFIX = 'pikkles:tutorial-seen:'
 
-/** 見たかどうかはブラウザに残す。読めない（プライベートブラウズなど）ときは見たことにして、毎回は出さない */
-export function tutorialSeen(): boolean {
+// localStorage に残せない（プライベートブラウズなど）ときも、そのページを開いている間は見たことにする
+const seenInMemory = new Set<string>()
+
+export function tutorialSeen(did: string): boolean {
+  if (seenInMemory.has(did)) return true
   try {
-    return localStorage.getItem(SEEN_KEY) !== null
+    return localStorage.getItem(KEY_PREFIX + did) !== null
   } catch {
-    return true
+    return false
   }
 }
 
-export function markTutorialSeen() {
+export function markTutorialSeen(did: string) {
+  seenInMemory.add(did)
   try {
-    localStorage.setItem(SEEN_KEY, '1')
+    localStorage.setItem(KEY_PREFIX + did, '1')
   } catch {
-    // 残せなくても使い方はそのまま閉じる
+    // 残せなくても、このページを開いている間は seenInMemory で見たことになる
   }
 }
