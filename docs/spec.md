@@ -244,13 +244,14 @@ WebSocketメッセージ
 | フロント | TypeScript、React（Vite）、react-konva、qrcode、jsQR（QR読み取り） | Vercel（`pikkles.kosora623.com`） |
 | 認証・保存 | `@atproto/api`、ブラウザ用OAuthクライアント | ― |
 | バックエンド | Python（FastAPI）、u2netp を onnxruntime で直接推論（rembg はモデルの取得だけ）、OpenCV、Pillow、WebSocket | Render（無料） |
-| DB | Render Postgres（無料）。共同フィールドのメンバーと、閉じたフィールドだけを持つ | Render |
+| DB | Neon（無料、シンガポール）。共同フィールドのメンバーと、閉じたフィールドだけを持つ | Neon |
 | タイムライン | 相手のPDSを直接読む（Jetstreamの収集は間に合えば） | Render |
 | 共同フィールドのリアルタイム反映 | ブラウザから公開のJetstreamを購読（7章） | ― |
 
 Hack Dayのデプロイ先はRender（無料、カード不要）。そのため次のように運用する。
 
-- DBはRender Postgres（無料、作成から30日で期限切れ）
+- DBはNeon（無料、期限なし。5分使わないと休み、次の接続で起きる）。接続URLは connection pooling なし、末尾の channel_binding=require は消す（asyncpg が受け付けない）
+- cron-job.org が10分おきに /health を叩き、Render を寝かせない
 - 収集プロセスを足す場合は、Webサービスの中で起動する
 - 無料版は15分アクセスがないと止まり、次のリクエストに数十秒かかる
 - 背景除去は軽量モデル（`u2netp` など）。RMBG系は非商用ライセンスなので使わない。512MBに収めるため rembg は読まずに onnxruntime を直接呼び、1枚ずつ処理する

@@ -1,7 +1,7 @@
 // 利用規約とプライバシーポリシーに同意したかどうか。ログイン後、同意するまでは ConsentGate が同意の画面を出す
 
 /** 規約・ポリシーの版。文面を変えたらここを上げると、全員にもう一度聞く */
-export const TERMS_VERSION = '2026-10-26'
+export const TERMS_VERSION = '2026-10-27'
 
 const KEY_PREFIX = 'pikkles:consent:'
 
