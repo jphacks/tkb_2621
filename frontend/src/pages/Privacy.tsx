@@ -6,7 +6,7 @@ import { TERMS_VERSION } from '../components/consent.ts'
 export default function Privacy() {
   return (
     <LegalPage title="Pikkles プライバシーポリシー">
-      <p>制定日：2026年10月26日（版：{TERMS_VERSION}）</p>
+      <p>制定日：2026年10月26日／改定日：2026年10月27日（版：{TERMS_VERSION}）</p>
       <p>
         Pikkles 開発チーム（以下「私たち」）は、Pikkles（https://pikkles.kosora623.com 、以下「本サービス」）で扱う情報について、次のとおり定めます。
       </p>
@@ -165,7 +165,12 @@ export default function Privacy() {
           </tr>
           <tr>
             <td>Render</td>
-            <td>サーバー（切り抜き・交換・共同フィールド）とデータベース</td>
+            <td>サーバー（切り抜き・交換・共同フィールド）</td>
+            <td>アメリカ合衆国の事業者、サーバーはシンガポール</td>
+          </tr>
+          <tr>
+            <td>Neon</td>
+            <td>データベース（共同フィールドのメンバーと、閉じたフィールドの記録）</td>
             <td>アメリカ合衆国の事業者、サーバーはシンガポール</td>
           </tr>
           <tr>
