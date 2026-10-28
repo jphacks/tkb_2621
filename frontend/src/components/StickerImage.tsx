@@ -22,6 +22,9 @@ export default function StickerImage({ did, sticker, maxHeight }: { did: Did; st
       alt={sticker.caption ?? 'ピクルス'}
       width={sticker.width}
       height={sticker.height}
+      // 画面の外のピクルスは、近づくまで読まない（PDS から原寸の PNG を読むので重い）
+      loading="lazy"
+      decoding="async"
       style={{ display: 'block', margin: '0 auto', maxWidth: '100%', maxHeight, width: 'auto', height: 'auto', objectFit: 'contain' }}
     />
   )

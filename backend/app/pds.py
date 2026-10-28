@@ -1,5 +1,6 @@
 """他人の PDS を読むだけの部品。書き込みはしない（AGENTS.md）。"""
 
+import asyncio
 import logging
 import time
 
@@ -18,6 +19,26 @@ BLOCK_CACHE_SECONDS = 30
 MAX_PAGES = 50
 
 _block_cache: dict[str, tuple[float, set[str]]] = {}
+# 同じ人のブロックを同時に読みに行かないように、読んでいる途中のものを覚えておく
+_block_inflight: dict[str, asyncio.Task] = {}
+
+# PDS への接続を使い回す。毎回つなぎ直すと、TLS のやり取りだけで1回の読み込みに往復が数回増える
+_client: httpx.AsyncClient | None = None
+
+
+def _http() -> httpx.AsyncClient:
+    global _client
+    if _client is None:
+        _client = httpx.AsyncClient(timeout=TIMEOUT_SECONDS)
+    return _client
+
+
+async def close() -> None:
+    """lifespan の終わりに呼ぶ"""
+    global _client
+    if _client is not None:
+        await _client.aclose()
+        _client = None
 
 
 class PdsError(Exception):
@@ -64,8 +85,7 @@ async def get_pds_endpoint(did: str) -> str:
 async def _xrpc_get(did: str, method: str, params: dict) -> httpx.Response:
     endpoint = await get_pds_endpoint(did)
     try:
-        async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS) as client:
-            return await client.get(f"{endpoint}/xrpc/{method}", params=params)
+        return await _http().get(f"{endpoint}/xrpc/{method}", params=params)
     except httpx.HTTPError as e:
         raise PdsError(f"{method} に失敗しました: {did} {endpoint}: {_describe(e)}") from e
 
@@ -106,11 +126,7 @@ async def list_records(did: str, collection: str) -> list[dict]:
     return records
 
 
-async def blocked_dids(did: str, fresh: bool = False) -> set[str]:
-    """did がブロックしている相手の DID。30秒キャッシュする。fresh なら読み直す。"""
-    cached = _block_cache.get(did)
-    if not fresh and cached and time.monotonic() - cached[0] < BLOCK_CACHE_SECONDS:
-        return cached[1]
+async def _read_blocks(did: str) -> set[str]:
     records = await list_records(did, "app.bsky.graph.block")
     subjects = {r["value"].get("subject") for r in records if isinstance(r.get("value"), dict)}
     subjects.discard(None)
@@ -118,9 +134,25 @@ async def blocked_dids(did: str, fresh: bool = False) -> set[str]:
     return subjects
 
 
+async def blocked_dids(did: str, fresh: bool = False) -> set[str]:
+    """did がブロックしている相手の DID。30秒キャッシュする。fresh なら読み直す。"""
+    if fresh:
+        return await _read_blocks(did)
+    cached = _block_cache.get(did)
+    if cached and time.monotonic() - cached[0] < BLOCK_CACHE_SECONDS:
+        return cached[1]
+    task = _block_inflight.get(did)
+    if task is None:
+        task = _block_inflight[did] = asyncio.ensure_future(_read_blocks(did))
+        task.add_done_callback(lambda _: _block_inflight.pop(did, None))
+    # 待っている1人が取り消されても、ほかの人の読み込みは止めない
+    return await asyncio.shield(task)
+
+
 async def check_no_block(a: str, b: str, fresh: bool = False) -> bool:
     """2人の間にどちら向きにもブロックが無ければ True（spec 6章の成立条件5）。
 
     交換の参加と成立では fresh にする。キャッシュのままだと、ブロックした直後の30秒は交換できてしまう。
     """
-    return b not in await blocked_dids(a, fresh) and a not in await blocked_dids(b, fresh)
+    blocked_by_a, blocked_by_b = await asyncio.gather(blocked_dids(a, fresh), blocked_dids(b, fresh))
+    return b not in blocked_by_a and a not in blocked_by_b
