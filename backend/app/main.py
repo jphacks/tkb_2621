@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from . import cutout as cutout_service
-from . import fields
+from . import fields, pds
 from .auth import require_did
 from .exchange import router as exchange_router
 from .config import ALLOWED_ORIGINS, BACKEND_DID, GIT_COMMIT
@@ -25,6 +25,7 @@ async def lifespan(_: FastAPI):
     await fields.store.init()
     yield
     await fields.store.close()
+    await pds.close()
 
 
 app = FastAPI(title="Pikkles API", lifespan=lifespan)

@@ -24,6 +24,22 @@ CACHE_SECONDS = 30
 CACHE_SWEEP_SIZE = 1000
 
 _cache: dict[tuple[str, str], tuple[float, list[dict] | pds.PdsError]] = {}
+# 同じ相手・コレクションを同時に読みに行かないように、読んでいる途中のものを覚えておく
+_inflight: dict[tuple[str, str], asyncio.Task] = {}
+
+
+async def _fetch(key: tuple[str, str]) -> tuple[float, list[dict] | pds.PdsError]:
+    did, collection = key
+    try:
+        result = [r for r in await pds.list_records(did, collection) if isinstance(r.get("value"), dict)]
+    except pds.PdsError as e:
+        result = e
+    now = time.monotonic()
+    if len(_cache) >= CACHE_SWEEP_SIZE:
+        for k in [k for k, (t, _) in _cache.items() if now - t >= CACHE_SECONDS]:
+            del _cache[k]
+    _cache[key] = (now, result)
+    return _cache[key]
 
 
 async def _records(did: str, collection: str) -> list[dict]:
@@ -32,17 +48,14 @@ async def _records(did: str, collection: str) -> list[dict]:
     読めなかったことも30秒覚えておく（落ちている PDS のタイムアウトを毎回待たないため）。
     """
     key = (did, collection)
-    now = time.monotonic()
     cached = _cache.get(key)
-    if cached is None or now - cached[0] >= CACHE_SECONDS:
-        try:
-            result = [r for r in await pds.list_records(did, collection) if isinstance(r.get("value"), dict)]
-        except pds.PdsError as e:
-            result = e
-        if len(_cache) >= CACHE_SWEEP_SIZE:
-            for k in [k for k, (t, _) in _cache.items() if now - t >= CACHE_SECONDS]:
-                del _cache[k]
-        cached = _cache[key] = (now, result)
+    if cached is None or time.monotonic() - cached[0] >= CACHE_SECONDS:
+        task = _inflight.get(key)
+        if task is None:
+            task = _inflight[key] = asyncio.ensure_future(_fetch(key))
+            task.add_done_callback(lambda _: _inflight.pop(key, None))
+        # 待っている1人が取り消されても、ほかの人の読み込みは止めない
+        cached = await asyncio.shield(task)
     if isinstance(cached[1], pds.PdsError):
         raise cached[1]
     return cached[1]
@@ -80,16 +93,25 @@ async def _exchange_partners(did: str) -> set[str]:
     return {p for p, ok in zip(by_partner, results) if ok}
 
 
-async def collect_partners(did: str) -> set[str]:
-    """タイムラインに出す相手（成立した交換の相手と、同じ共同フィールドのメンバー）。ブロック関係にある相手は外す。"""
-    candidates = await _exchange_partners(did)
-    try:
-        candidates |= await fields.co_members(did)
-    except fields.StoreUnavailable:
-        # DB が落ちていても、交換の相手だけで返す
-        logger.exception("timeline: field members failed")
+async def _candidates(did: str) -> set[str]:
+    """タイムラインに出す相手の候補（成立した交換の相手と、同じ共同フィールドのメンバー）。PDS と DB は同時に読む。"""
 
-    async def not_blocked(partner: str) -> bool:
+    async def co_members() -> set[str]:
+        try:
+            return await fields.co_members(did)
+        except fields.StoreUnavailable:
+            # DB が落ちていても、交換の相手だけで返す
+            logger.exception("timeline: field members failed")
+            return set()
+
+    partners, members = await asyncio.gather(_exchange_partners(did), co_members())
+    return partners | members
+
+
+async def _not_blocked(did: str, candidates: list[str]) -> set[str]:
+    """ブロック関係にない相手だけ残す"""
+
+    async def ok(partner: str) -> bool:
         try:
             return await pds.check_no_block(did, partner)
         except pds.PdsError as e:
@@ -97,8 +119,8 @@ async def collect_partners(did: str) -> set[str]:
             logger.warning("timeline: block check failed: %s", e)
             return False
 
-    results = await asyncio.gather(*(not_blocked(p) for p in candidates))
-    return {p for p, ok in zip(candidates, results) if ok}
+    results = await asyncio.gather(*(ok(p) for p in candidates))
+    return {p for p, allowed in zip(candidates, results) if allowed}
 
 
 def _parse_time(value) -> datetime | None:
@@ -179,13 +201,18 @@ async def timeline(
             after = _decode_cursor(cursor)
         except ValueError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "cursor が正しくありません") from e
+    started = time.monotonic()
     try:
-        partners = await collect_partners(did)
+        candidates = list(await _candidates(did))
     except pds.PdsError as e:
         logger.warning("timeline: own PDS failed: did=%s: %s", did, e)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "自分の PDS が読めませんでした") from e
 
-    items = [i for chunk in await asyncio.gather(*(_partner_items(p) for p in partners)) for i in chunk]
+    # ブロックの確認と相手の記録は同時に読み、ブロック関係の相手の分はあとで捨てる
+    allowed, chunks = await asyncio.gather(
+        _not_blocked(did, candidates), asyncio.gather(*(_partner_items(p) for p in candidates))
+    )
+    items = [i for p, chunk in zip(candidates, chunks) if p in allowed for i in chunk]
     # 新しい順。同じ時刻は uri で並びを決める
     items.sort(key=lambda x: (x[0], x[1].uri), reverse=True)
     if after is not None:
@@ -193,4 +220,7 @@ async def timeline(
 
     page = items[:limit]
     next_cursor = _encode_cursor(page[-1][0], page[-1][1].uri) if len(items) > limit else None
+    logger.info(
+        "timeline: did=%s partners=%d items=%d %.2fs", did, len(allowed), len(items), time.monotonic() - started
+    )
     return TimelineResponse(items=[x[1] for x in page], cursor=next_cursor)
